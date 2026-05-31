@@ -1,4 +1,4 @@
-import { requireOrg } from "@/lib/tenant";
+import { requireActiveOrg } from "@/lib/tenant";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 
@@ -7,9 +7,9 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Exige sessão + organização. O middleware já protege /dashboard;
-  // este guard garante o contexto de tenant no server.
-  const ctx = await requireOrg();
+  // Exige sessão + organização ativa. O middleware já protege /dashboard;
+  // este guard garante o contexto de tenant e bloqueia org suspensa (§11.1).
+  const ctx = await requireActiveOrg();
 
   return (
     <div className="flex min-h-screen">

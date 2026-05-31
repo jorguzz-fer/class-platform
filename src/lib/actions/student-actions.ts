@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requireOrg } from "@/lib/tenant";
 import { assertPermission } from "@/lib/permissions";
+import { audit } from "@/lib/audit";
 import {
   createStudentSchema,
   updateStudentSchema,
@@ -41,6 +42,14 @@ export async function createStudentAction(
   const result = await createStudent(ctx.organizationId, parsed.data);
   if (!result.ok) return { error: result.error };
 
+  await audit({
+    organizationId: ctx.organizationId,
+    userId: ctx.userId,
+    action: "student.create",
+    entityType: "User",
+    entityId: result.studentId,
+  });
+
   revalidatePath("/dashboard/students");
   redirect(`/dashboard/students/${result.studentId}`);
 }
@@ -72,6 +81,15 @@ export async function removeStudentAction(studentId: string): Promise<void> {
   assertPermission(ctx.role, "student:manage");
 
   await removeStudent(ctx.organizationId, studentId);
+
+  await audit({
+    organizationId: ctx.organizationId,
+    userId: ctx.userId,
+    action: "student.remove",
+    entityType: "User",
+    entityId: studentId,
+  });
+
   revalidatePath("/dashboard/students");
   redirect("/dashboard/students");
 }

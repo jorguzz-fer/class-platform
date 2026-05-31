@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { GraduationCap, BookOpen, Award, User } from "lucide-react";
 
-import { requireOrg } from "@/lib/tenant";
+import { requireActiveOrg } from "@/lib/tenant";
 import { logoutAction } from "@/lib/actions/auth-actions";
 import { Button } from "@/components/ui/button";
 
@@ -10,7 +10,7 @@ export default async function StudentLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const ctx = await requireOrg();
+  const ctx = await requireActiveOrg();
 
   return (
     <div className="flex min-h-screen flex-col">

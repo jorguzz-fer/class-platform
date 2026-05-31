@@ -83,6 +83,28 @@ nunca confie em ids vindos do cliente.
 
 ## Status
 
-MVP em construção por etapas (ver `SPEC.md` §20). **Entrega atual:** fundação,
-autenticação/onboarding e layout do painel. Próximas: cursos, módulos/aulas,
-alunos/matrículas, área do aluno, certificados e métricas.
+**MVP completo** (Etapas 1–10 do `SPEC.md` §20):
+
+1. ✅ Fundação (Next/Tailwind/shadcn/Prisma/Postgres) + schema + seed
+2. ✅ Auth & onboarding (cria Organization + School + trial)
+3. ✅ Layout do painel (sidebar/topbar)
+4. ✅ CRUD de cursos (DRAFT/PUBLISHED/ARCHIVED + regra de publicação)
+5. ✅ Módulos e aulas com ordenação
+6. ✅ Alunos e matrículas manuais
+7. ✅ Área do aluno (player + progresso + conclusão de curso)
+8. ✅ Certificados com código de verificação pública
+9. ✅ Dashboard com métricas reais
+10. ✅ Hardening (isolamento multi-tenant, headers de segurança, bloqueio de
+    org suspensa, AuditLog para PII)
+
+**Preparado mas não implementado** (pós-MVP, ver `SPEC.md` §18): checkout/
+pagamentos, comunidade, IA, WhatsApp, SSO, page builder, marketplace.
+
+### Segurança & LGPD
+
+- Senhas com bcrypt; PII fora de logs; queries só via Prisma; segredos via env.
+- Isolamento por `organizationId` em todos os serviços (validado por testes).
+- Headers de segurança (HSTS, nosniff, X-Frame-Options, Permissions-Policy).
+- `AuditLog` registra ações sobre PII (accountability).
+- Itens LGPD pendentes (consentimento/termos, exportação, anonimização,
+  retenção) estão mapeados no planejamento para evolução.
