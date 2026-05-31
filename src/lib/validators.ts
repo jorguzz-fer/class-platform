@@ -46,3 +46,31 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+// ---------------------------------------------------------------------------
+// Cursos (Etapa 4)
+// ---------------------------------------------------------------------------
+
+const courseLevels = ["BEGINNER", "INTERMEDIATE", "ADVANCED", "ALL_LEVELS"] as const;
+const courseVisibilities = ["PUBLIC", "PRIVATE", "UNLISTED"] as const;
+
+export const createCourseSchema = z.object({
+  title: z.string().trim().min(3, "Título muito curto").max(160),
+  subtitle: z.string().trim().max(200).optional().or(z.literal("")),
+  description: z.string().trim().max(5000).optional().or(z.literal("")),
+  level: z.enum(courseLevels).default("ALL_LEVELS"),
+  visibility: z.enum(courseVisibilities).default("PRIVATE"),
+  category: z.string().trim().max(80).optional().or(z.literal("")),
+});
+
+export const updateCourseSchema = createCourseSchema.extend({
+  thumbnailUrl: z.string().trim().url("URL inválida").max(500).optional().or(z.literal("")),
+  price: z.coerce
+    .number({ invalid_type_error: "Preço inválido" })
+    .min(0, "Preço não pode ser negativo")
+    .max(1_000_000)
+    .optional(),
+});
+
+export type CreateCourseInput = z.infer<typeof createCourseSchema>;
+export type UpdateCourseInput = z.infer<typeof updateCourseSchema>;
