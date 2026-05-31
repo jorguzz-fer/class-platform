@@ -9,6 +9,8 @@ import {
 } from "@/services/progress.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { IssueCertificateButton } from "@/components/student/issue-certificate-button";
+import { db } from "@/lib/db";
 
 export default async function StudentCoursePage({
   params,
@@ -31,6 +33,20 @@ export default async function StudentCoursePage({
     .flatMap((m) => m.lessons)
     .find((l) => progressByLesson.get(l.id) !== "COMPLETED");
 
+  // Certificado: curso concluído + verifica se já foi emitido.
+  const courseCompleted = enrollment.status === "COMPLETED";
+  const existingCertificate = courseCompleted
+    ? await db.certificate.findUnique({
+        where: {
+          courseId_studentId: {
+            courseId: enrollment.course.id,
+            studentId: ctx.userId,
+          },
+        },
+        select: { id: true },
+      })
+    : null;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
@@ -52,6 +68,29 @@ export default async function StudentCoursePage({
           </Link>
         )}
       </div>
+
+      {courseCompleted && (
+        <Card className="border-primary">
+          <CardContent className="flex flex-col items-start gap-3 py-6 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium">🎉 Você concluiu este curso!</p>
+              <p className="text-sm text-muted-foreground">
+                Emita seu certificado de conclusão.
+              </p>
+            </div>
+            {existingCertificate ? (
+              <Link
+                href={`/app/certificates/${existingCertificate.id}`}
+                className="inline-flex h-9 items-center gap-2 rounded-md border bg-background px-4 text-sm font-medium hover:bg-accent"
+              >
+                Ver certificado
+              </Link>
+            ) : (
+              <IssueCertificateButton courseId={enrollment.course.id} />
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex flex-col gap-4">
         {modules.map((mod, idx) => (
