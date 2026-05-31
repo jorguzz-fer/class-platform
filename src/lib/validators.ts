@@ -74,3 +74,43 @@ export const updateCourseSchema = createCourseSchema.extend({
 
 export type CreateCourseInput = z.infer<typeof createCourseSchema>;
 export type UpdateCourseInput = z.infer<typeof updateCourseSchema>;
+
+// ---------------------------------------------------------------------------
+// Módulos e Aulas (Etapa 5)
+// ---------------------------------------------------------------------------
+
+export const moduleSchema = z.object({
+  title: z.string().trim().min(2, "Título muito curto").max(160),
+  description: z.string().trim().max(2000).optional().or(z.literal("")),
+});
+
+const lessonContentTypes = [
+  "VIDEO",
+  "TEXT",
+  "PDF",
+  "AUDIO",
+  "LIVE",
+  "EMBED",
+] as const;
+
+export const lessonSchema = z.object({
+  title: z.string().trim().min(2, "Título muito curto").max(160),
+  description: z.string().trim().max(2000).optional().or(z.literal("")),
+  contentType: z.enum(lessonContentTypes).default("VIDEO"),
+  videoProvider: z.string().trim().max(40).optional().or(z.literal("")),
+  videoId: z.string().trim().max(200).optional().or(z.literal("")),
+  videoUrl: z.string().trim().url("URL inválida").max(500).optional().or(z.literal("")),
+  textContent: z.string().trim().max(50000).optional().or(z.literal("")),
+  durationMinutes: z.coerce.number().int().min(0).max(100000).optional(),
+  isPreview: z.coerce.boolean().default(false),
+  isRequired: z.coerce.boolean().default(true),
+});
+
+// Reordenação: lista de ids na nova ordem.
+export const reorderSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1),
+});
+
+export type ModuleInput = z.infer<typeof moduleSchema>;
+export type LessonInput = z.infer<typeof lessonSchema>;
+export type ReorderInput = z.infer<typeof reorderSchema>;

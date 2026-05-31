@@ -9,6 +9,8 @@ import { updateCourseAction } from "@/lib/actions/course-actions";
 import { CourseForm } from "@/components/forms/course-form";
 import { CourseStatusBadge } from "@/components/dashboard/course-status-badge";
 import { CourseActionsBar } from "@/components/dashboard/course-actions-bar";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -39,9 +41,17 @@ export default async function CourseDetailPage({
           <ArrowLeft className="h-4 w-4" />
           Voltar
         </Link>
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight">{course.title}</h1>
-          <CourseStatusBadge status={course.status} />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight">{course.title}</h1>
+            <CourseStatusBadge status={course.status} />
+          </div>
+          <Link
+            href={`/dashboard/courses/${course.id}/modules`}
+            className={cn(buttonVariants({ variant: "outline" }))}
+          >
+            Gerenciar conteúdo
+          </Link>
         </div>
       </div>
 
