@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: classos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: classos
+      POSTGRES_PASSWORD: classos
+      POSTGRES_DB: classos
+    ports:
+      - "5432:5432"
+    volumes:
+      - classos_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U classos -d classos"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  classos_pgdata:
