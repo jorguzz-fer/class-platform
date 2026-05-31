@@ -114,3 +114,26 @@ export const reorderSchema = z.object({
 export type ModuleInput = z.infer<typeof moduleSchema>;
 export type LessonInput = z.infer<typeof lessonSchema>;
 export type ReorderInput = z.infer<typeof reorderSchema>;
+
+// ---------------------------------------------------------------------------
+// Alunos e Matrículas (Etapa 6)
+// ---------------------------------------------------------------------------
+
+export const createStudentSchema = z.object({
+  name: z.string().trim().min(2, "Informe o nome").max(120),
+  email: z.string().trim().toLowerCase().email("E-mail inválido").max(160),
+});
+
+export const updateStudentSchema = z.object({
+  name: z.string().trim().min(2, "Informe o nome").max(120),
+  isActive: z.coerce.boolean().default(true),
+});
+
+export const createEnrollmentSchema = z.object({
+  studentId: z.string().min(1, "Selecione um aluno"),
+  courseId: z.string().min(1, "Selecione um curso"),
+});
+
+export type CreateStudentInput = z.infer<typeof createStudentSchema>;
+export type UpdateStudentInput = z.infer<typeof updateStudentSchema>;
+export type CreateEnrollmentInput = z.infer<typeof createEnrollmentSchema>;

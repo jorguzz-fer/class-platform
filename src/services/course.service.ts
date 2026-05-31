@@ -23,6 +23,15 @@ export function listCourses(organizationId: string) {
   });
 }
 
+/** Cursos elegíveis para matrícula (não arquivados), só id/título. */
+export function listEnrollableCourses(organizationId: string) {
+  return db.course.findMany({
+    where: { organizationId, status: { not: "ARCHIVED" } },
+    orderBy: { title: "asc" },
+    select: { id: true, title: true },
+  });
+}
+
 export function getCourse(organizationId: string, courseId: string) {
   return db.course.findFirst({
     where: { id: courseId, organizationId },
