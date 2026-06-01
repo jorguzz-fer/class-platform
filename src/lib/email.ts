@@ -1,12 +1,14 @@
+import { Resend } from "resend";
+
 /**
  * Abstração de envio de e-mail.
  *
- * No MVP não há provedor configurado. Em desenvolvimento, registramos o e-mail
- * no console (sem expor em respostas HTTP). Em produção, plugar um provider real
- * (Resend, SES, SMTP) implementando esta interface — sem alterar os callers.
+ * Seleção do provider por ambiente, sem segredos no código:
+ * - Se `RESEND_API_KEY` estiver definido → envia de verdade via Resend.
+ * - Caso contrário → provider de desenvolvimento, que apenas loga no servidor
+ *   (nunca em produção, nunca em respostas HTTP).
  *
- * Segurança: nunca logar tokens/links em produção; o log abaixo é gated por
- * NODE_ENV !== "production".
+ * Plugar outro provider (SES/SMTP) = implementar a interface EmailProvider.
  */
 
 export interface EmailMessage {
@@ -27,12 +29,40 @@ const devEmailProvider: EmailProvider = {
         `[email:dev] para=${message.to} assunto="${message.subject}"\n${message.text}`,
       );
     }
-    // Em produção sem provider configurado, silenciosamente não envia.
-    // (Substituir por provider real antes de ir a produção.)
+    // Sem provider configurado em produção: não envia (evita falsa sensação de envio).
   },
 };
 
-export const emailProvider: EmailProvider = devEmailProvider;
+/** Provider real via Resend. */
+function createResendProvider(apiKey: string): EmailProvider {
+  const resend = new Resend(apiKey);
+  // Remetente verificado no Resend; configurável por env.
+  const from = process.env.EMAIL_FROM ?? "ClassOS <no-reply@classos.app>";
+
+  return {
+    async send(message) {
+      const { error } = await resend.emails.send({
+        from,
+        to: message.to,
+        subject: message.subject,
+        text: message.text,
+      });
+      if (error) {
+        // Não vaza detalhes do provider para o usuário; loga para diagnóstico.
+        console.error("[email:resend] falha ao enviar:", error.message);
+        throw new Error("Falha ao enviar e-mail.");
+      }
+    },
+  };
+}
+
+function resolveProvider(): EmailProvider {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (apiKey) return createResendProvider(apiKey);
+  return devEmailProvider;
+}
+
+export const emailProvider: EmailProvider = resolveProvider();
 
 export function sendEmail(message: EmailMessage): Promise<void> {
   return emailProvider.send(message);

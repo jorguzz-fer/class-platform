@@ -51,14 +51,20 @@ export async function requestPasswordReset(email: string): Promise<void> {
   });
 
   const link = `${APP_URL}/reset-password?token=${token}`;
-  await sendEmail({
-    to: email,
-    subject: "Redefinição de senha — ClassOS",
-    text:
-      `Recebemos um pedido para redefinir sua senha.\n\n` +
-      `Acesse o link abaixo (válido por 1 hora):\n${link}\n\n` +
-      `Se você não solicitou, ignore este e-mail.`,
-  });
+  // Best-effort: uma falha no provider de e-mail não deve quebrar o fluxo nem
+  // revelar (via erro) se o e-mail existe. O token já está persistido.
+  try {
+    await sendEmail({
+      to: email,
+      subject: "Redefinição de senha — ClassOS",
+      text:
+        `Recebemos um pedido para redefinir sua senha.\n\n` +
+        `Acesse o link abaixo (válido por 1 hora):\n${link}\n\n` +
+        `Se você não solicitou, ignore este e-mail.`,
+    });
+  } catch {
+    // já logado no provider; segue sem propagar.
+  }
 }
 
 export type ResetResult = { ok: true } | { ok: false; error: string };
