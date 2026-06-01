@@ -141,3 +141,69 @@ export const createEnrollmentSchema = z.object({
 export type CreateStudentInput = z.infer<typeof createStudentSchema>;
 export type UpdateStudentInput = z.infer<typeof updateStudentSchema>;
 export type CreateEnrollmentInput = z.infer<typeof createEnrollmentSchema>;
+
+// ---------------------------------------------------------------------------
+// Configurações da escola (MVP: branding, domínio, time)
+// ---------------------------------------------------------------------------
+
+const optionalUrl = z.string().trim().url("URL inválida").max(500).optional().or(z.literal(""));
+const hexColor = z
+  .string()
+  .trim()
+  .regex(/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Cor inválida (use #RRGGBB)")
+  .optional()
+  .or(z.literal(""));
+
+export const schoolBrandingSchema = z.object({
+  name: z.string().trim().min(2, "Informe o nome da escola").max(120),
+  description: z.string().trim().max(2000).optional().or(z.literal("")),
+  logoUrl: optionalUrl,
+  faviconUrl: optionalUrl,
+  primaryColor: hexColor,
+  secondaryColor: hexColor,
+  backgroundColor: hexColor,
+});
+
+const domainPart = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .max(255)
+  .optional()
+  .or(z.literal(""));
+
+export const schoolDomainSchema = z.object({
+  subdomain: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use apenas letras minúsculas, números e hífens")
+    .min(3)
+    .max(40)
+    .optional()
+    .or(z.literal("")),
+  customDomain: domainPart,
+});
+
+const teamRoles = ["ORG_ADMIN", "INSTRUCTOR", "SUPPORT"] as const;
+
+export const inviteTeamMemberSchema = z.object({
+  name: z.string().trim().min(2, "Informe o nome").max(120),
+  email: z.string().trim().toLowerCase().email("E-mail inválido").max(160),
+  role: z.enum(teamRoles),
+});
+
+export type SchoolBrandingInput = z.infer<typeof schoolBrandingSchema>;
+export type SchoolDomainInput = z.infer<typeof schoolDomainSchema>;
+export type InviteTeamMemberInput = z.infer<typeof inviteTeamMemberSchema>;
+
+// ---------------------------------------------------------------------------
+// Perfil do usuário
+// ---------------------------------------------------------------------------
+
+export const updateProfileSchema = z.object({
+  name: z.string().trim().min(2, "Informe seu nome").max(120),
+  avatarUrl: z.string().trim().url("URL inválida").max(500).optional().or(z.literal("")),
+});
+
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

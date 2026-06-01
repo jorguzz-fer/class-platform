@@ -41,7 +41,8 @@ export async function requireOrg(): Promise<TenantContext & { organizationId: st
   const ctx = await getTenantContext();
   if (!ctx) redirect("/login");
   if (!ctx.organizationId) {
-    // Usuário sem organização (ex.: SUPER_ADMIN) não acessa o painel da escola.
+    // SUPER_ADMIN não pertence a uma escola: vai para o painel da plataforma.
+    if (ctx.role === "SUPER_ADMIN") redirect("/admin");
     redirect("/login");
   }
   return ctx as TenantContext & { organizationId: string };
@@ -63,5 +64,15 @@ export async function requireActiveOrg(): Promise<
   if (!org || org.status === "SUSPENDED" || org.status === "CANCELED") {
     redirect("/suspended");
   }
+  return ctx;
+}
+
+/**
+ * Exige um SUPER_ADMIN da plataforma (painel /admin). Redireciona quem não for.
+ */
+export async function requireSuperAdmin(): Promise<TenantContext> {
+  const ctx = await getTenantContext();
+  if (!ctx) redirect("/login");
+  if (ctx.role !== "SUPER_ADMIN") redirect("/dashboard");
   return ctx;
 }
