@@ -101,9 +101,10 @@ export const lessonSchema = z.object({
   title: z.string().trim().min(2, "Título muito curto").max(160),
   description: z.string().trim().max(2000).optional().or(z.literal("")),
   contentType: z.enum(lessonContentTypes).default("VIDEO"),
+  // Fonte do vídeo: o usuário escolhe o provider e cola URL/ID; o registry
+  // (src/lib/video) normaliza em videoId/videoUrl no momento de salvar.
   videoProvider: z.string().trim().max(40).optional().or(z.literal("")),
-  videoId: z.string().trim().max(200).optional().or(z.literal("")),
-  videoUrl: z.string().trim().url("URL inválida").max(500).optional().or(z.literal("")),
+  videoSource: z.string().trim().max(500).optional().or(z.literal("")),
   textContent: z.string().trim().max(50000).optional().or(z.literal("")),
   durationMinutes: z.coerce.number().int().min(0).max(100000).optional(),
   isPreview: z.coerce.boolean().default(false),

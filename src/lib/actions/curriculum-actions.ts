@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { requireOrg } from "@/lib/tenant";
 import { assertPermission } from "@/lib/permissions";
 import { moduleSchema, lessonSchema } from "@/lib/validators";
+import { getVideoProvider } from "@/lib/video/registry";
+import type { LessonServiceInput } from "@/services/lesson.service";
 import {
   createModule,
   updateModule,
@@ -101,13 +103,39 @@ function parseLesson(formData: FormData) {
     description: formData.get("description"),
     contentType: formData.get("contentType") ?? undefined,
     videoProvider: formData.get("videoProvider"),
-    videoId: formData.get("videoId"),
-    videoUrl: formData.get("videoUrl"),
+    videoSource: formData.get("videoSource"),
     textContent: formData.get("textContent"),
     durationMinutes: formData.get("durationMinutes") || undefined,
     isPreview: formData.get("isPreview") === "on" || formData.get("isPreview") === "true",
     isRequired: formData.get("isRequired") === "on" || formData.get("isRequired") === "true",
   });
+}
+
+/**
+ * Converte os dados do formulário (com `videoSource`) no formato do serviço,
+ * normalizando a fonte do vídeo via o registry (videoId/videoUrl).
+ */
+function toLessonInput(
+  data: ReturnType<typeof lessonSchema.parse>,
+): LessonServiceInput {
+  const provider = getVideoProvider(data.videoProvider || null);
+  const parsed =
+    provider && data.videoSource
+      ? provider.parse(data.videoSource)
+      : { videoId: null, videoUrl: null };
+
+  return {
+    title: data.title,
+    description: data.description,
+    contentType: data.contentType,
+    videoProvider: provider && data.videoSource ? provider.id : null,
+    videoId: parsed.videoId,
+    videoUrl: parsed.videoUrl,
+    textContent: data.textContent,
+    durationMinutes: data.durationMinutes,
+    isPreview: data.isPreview,
+    isRequired: data.isRequired,
+  };
 }
 
 export async function createLessonAction(
@@ -122,7 +150,7 @@ export async function createLessonAction(
   const parsed = parseLesson(formData);
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
 
-  const created = await createLesson(ctx.organizationId, moduleId, parsed.data);
+  const created = await createLesson(ctx.organizationId, moduleId, toLessonInput(parsed.data));
   if (!created) return { error: "Módulo não encontrado." };
 
   revalidateCourse(courseId);
@@ -141,7 +169,7 @@ export async function updateLessonAction(
   const parsed = parseLesson(formData);
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
 
-  const ok = await updateLesson(ctx.organizationId, lessonId, parsed.data);
+  const ok = await updateLesson(ctx.organizationId, lessonId, toLessonInput(parsed.data));
   if (!ok) return { error: "Aula não encontrada." };
 
   revalidateCourse(courseId);

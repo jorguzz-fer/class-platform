@@ -1,10 +1,27 @@
+import type { LessonContentType } from "@prisma/client";
+
 import { db } from "@/lib/db";
-import type { LessonInput } from "@/lib/validators";
 
 /**
  * Serviço de Aulas (SPEC §14.6). Toda aula pertence a um módulo e a um curso,
  * sempre escopada por organizationId.
+ *
+ * Recebe os dados de vídeo já normalizados (videoProvider + videoId/videoUrl) —
+ * a tradução de "fonte do vídeo" (URL/ID colado) acontece na camada de ação,
+ * via o registry em src/lib/video.
  */
+export interface LessonServiceInput {
+  title: string;
+  description?: string;
+  contentType: LessonContentType;
+  videoProvider?: string | null;
+  videoId?: string | null;
+  videoUrl?: string | null;
+  textContent?: string;
+  durationMinutes?: number;
+  isPreview: boolean;
+  isRequired: boolean;
+}
 
 async function getModuleInOrg(organizationId: string, moduleId: string) {
   return db.module.findFirst({
@@ -22,7 +39,7 @@ export function getLesson(organizationId: string, lessonId: string) {
 export async function createLesson(
   organizationId: string,
   moduleId: string,
-  input: LessonInput,
+  input: LessonServiceInput,
 ) {
   const mod = await getModuleInOrg(organizationId, moduleId);
   if (!mod) return null;
@@ -52,7 +69,7 @@ export async function createLesson(
 export async function updateLesson(
   organizationId: string,
   lessonId: string,
-  input: LessonInput,
+  input: LessonServiceInput,
 ) {
   const result = await db.lesson.updateMany({
     where: { id: lessonId, organizationId },

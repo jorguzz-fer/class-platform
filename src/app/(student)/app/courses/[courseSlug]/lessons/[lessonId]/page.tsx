@@ -10,30 +10,46 @@ import { listLessonComments } from "@/services/community.service";
 import { LessonCompleteButton } from "@/components/student/lesson-complete-button";
 import { TutorChat } from "@/components/student/tutor-chat";
 import { LessonComments } from "@/components/student/lesson-comments";
+import { resolveEmbed } from "@/lib/video/registry";
 import { Card, CardContent } from "@/components/ui/card";
 
 /** Renderiza o conteúdo da aula conforme o tipo. */
 function LessonContent({
   contentType,
+  videoProvider,
+  videoId,
   videoUrl,
   textContent,
 }: {
   contentType: string;
+  videoProvider: string | null;
+  videoId: string | null;
   videoUrl: string | null;
   textContent: string | null;
 }) {
-  if ((contentType === "VIDEO" || contentType === "EMBED") && videoUrl) {
-    return (
-      <div className="aspect-video w-full overflow-hidden rounded-lg border bg-black">
-        <iframe
-          src={videoUrl}
-          className="h-full w-full"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          title="Player da aula"
-        />
-      </div>
-    );
+  if (contentType === "VIDEO" || contentType === "EMBED") {
+    const embed = resolveEmbed({ videoProvider, videoId, videoUrl });
+    if (embed.type === "iframe") {
+      return (
+        <div className="aspect-video w-full overflow-hidden rounded-lg border bg-black">
+          <iframe
+            src={embed.src}
+            className="h-full w-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            title="Player da aula"
+          />
+        </div>
+      );
+    }
+    if (embed.type === "native") {
+      return (
+        <div className="aspect-video w-full overflow-hidden rounded-lg border bg-black">
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          <video src={embed.src} controls className="h-full w-full" />
+        </div>
+      );
+    }
   }
 
   if (contentType === "TEXT" && textContent) {
@@ -93,6 +109,8 @@ export default async function LessonPlayerPage({
 
       <LessonContent
         contentType={lesson.contentType}
+        videoProvider={lesson.videoProvider}
+        videoId={lesson.videoId}
         videoUrl={lesson.videoUrl}
         textContent={lesson.textContent}
       />

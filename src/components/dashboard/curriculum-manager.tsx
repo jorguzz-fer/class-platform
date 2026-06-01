@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { listVideoProviders } from "@/lib/video/registry";
 import {
   createModuleAction,
   updateModuleAction,
@@ -391,20 +392,7 @@ function LessonForm({
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="lesson-provider">Provider de vídeo</Label>
-          <Input id="lesson-provider" name="videoProvider" placeholder="mux, bunny..." />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="lesson-videoid">ID do vídeo</Label>
-          <Input id="lesson-videoid" name="videoId" />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="lesson-url">URL do vídeo</Label>
-          <Input id="lesson-url" name="videoUrl" type="url" />
-        </div>
-      </div>
+      <VideoSourceFields />
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="lesson-text">Conteúdo em texto (opcional)</Label>
@@ -429,5 +417,45 @@ function LessonForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Seletor de fonte de vídeo + input único. O usuário escolhe o provider
+ * (YouTube, Vimeo, arquivo direto) e cola a URL/ID; a normalização final é
+ * feita no servidor (parse do registry). Enviamos videoProvider + videoSource.
+ */
+function VideoSourceFields() {
+  const providers = listVideoProviders();
+  const [provider, setProvider] = useState(providers[0]?.id ?? "");
+  const current = providers.find((p) => p.id === provider);
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="lesson-provider">Fonte do vídeo</Label>
+        <select
+          id="lesson-provider"
+          name="videoProvider"
+          className={selectClass}
+          value={provider}
+          onChange={(e) => setProvider(e.target.value)}
+        >
+          {providers.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="lesson-source">URL ou ID do vídeo</Label>
+        <Input
+          id="lesson-source"
+          name="videoSource"
+          placeholder={current?.inputHint ?? "Cole a URL ou ID"}
+        />
+      </div>
+    </div>
   );
 }
