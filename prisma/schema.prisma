@@ -18,6 +18,7 @@ model User {
   id           String    @id @default(cuid())
   name         String
   email        String    @unique
+  phone        String? // WhatsApp/telefone (E.164), opcional
   passwordHash String?
   avatarUrl    String?
   role         UserRole  @default(STUDENT)
@@ -73,6 +74,8 @@ model Organization {
   certificates Certificate[]
   subscription Subscription?
   auditLogs    AuditLog[]
+  webhooks     Webhook[]
+  notifications NotificationLog[]
 }
 
 model OrganizationMember {
@@ -357,6 +360,63 @@ model PasswordResetToken {
 }
 
 // ----------------------------------------------------------------------------
+// Automações: webhooks de saída e notificações (Fase 5)
+// ----------------------------------------------------------------------------
+
+// Endpoint configurado pela escola para receber eventos (ex.: n8n, Zapier, custom).
+model Webhook {
+  id             String   @id @default(cuid())
+  organizationId String
+  url            String
+  secret         String // usado para assinar o payload (HMAC-SHA256)
+  events         String[] // tipos de evento inscritos (ex.: "enrollment.created")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deliveries   WebhookDelivery[]
+
+  @@index([organizationId])
+}
+
+model WebhookDelivery {
+  id           String        @id @default(cuid())
+  webhookId    String
+  event        String
+  payload      Json
+  status       DeliveryStatus @default(PENDING)
+  statusCode   Int?
+  attempts     Int           @default(0)
+  lastError    String?
+  createdAt    DateTime      @default(now())
+  deliveredAt  DateTime?
+
+  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId])
+  @@index([status])
+}
+
+// Registro de notificações enviadas (e-mail / WhatsApp).
+model NotificationLog {
+  id             String             @id @default(cuid())
+  organizationId String
+  userId         String?
+  channel        NotificationChannel
+  template       String // ex.: "enrollment_access", "lesson_reminder"
+  destination    String // e-mail ou telefone (mascarado em logs/erros)
+  status         DeliveryStatus     @default(PENDING)
+  error          String?
+  createdAt      DateTime           @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([userId])
+}
+
+// ----------------------------------------------------------------------------
 // Enums
 // ----------------------------------------------------------------------------
 
@@ -428,4 +488,15 @@ enum ProgressStatus {
 enum BillingCycle {
   MONTHLY
   YEARLY
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum NotificationChannel {
+  EMAIL
+  WHATSAPP
 }

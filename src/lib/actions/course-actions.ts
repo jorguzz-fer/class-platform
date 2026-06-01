@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requireOrg } from "@/lib/tenant";
 import { assertPermission } from "@/lib/permissions";
+import { onCoursePublished } from "@/services/events.service";
 import { createCourseSchema, updateCourseSchema } from "@/lib/validators";
 import {
   createCourse,
@@ -79,6 +80,8 @@ export async function publishCourseAction(courseId: string): Promise<CourseFormS
 
   const result = await publishCourse(ctx.organizationId, courseId);
   if (!result.ok) return { error: result.error };
+
+  await onCoursePublished(ctx.organizationId, courseId);
 
   revalidatePath(`/dashboard/courses/${courseId}`);
   revalidatePath("/dashboard/courses");

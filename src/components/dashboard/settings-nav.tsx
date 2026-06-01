@@ -9,6 +9,7 @@ const items = [
   { href: "/dashboard/settings/branding", label: "Marca" },
   { href: "/dashboard/settings/domain", label: "Domínio" },
   { href: "/dashboard/settings/team", label: "Equipe" },
+  { href: "/dashboard/settings/automations", label: "Automações" },
 ];
 
 export function SettingsNav() {

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { requireOrg } from "@/lib/tenant";
 import { assertPermission } from "@/lib/permissions";
 import { audit } from "@/lib/audit";
+import { onEnrollmentCreated, onStudentCreated } from "@/services/events.service";
 import {
   createStudentSchema,
   updateStudentSchema,
@@ -49,6 +50,7 @@ export async function createStudentAction(
     entityType: "User",
     entityId: result.studentId,
   });
+  await onStudentCreated(ctx.organizationId, result.studentId);
 
   revalidatePath("/dashboard/students");
   redirect(`/dashboard/students/${result.studentId}`);
@@ -115,6 +117,13 @@ export async function enrollStudentAction(
     parsed.data.courseId,
   );
   if (!result.ok) return { error: result.error };
+
+  // Notifica o aluno (e-mail/WhatsApp) e dispara webhooks.
+  await onEnrollmentCreated(
+    ctx.organizationId,
+    parsed.data.studentId,
+    parsed.data.courseId,
+  );
 
   revalidatePath("/dashboard/enrollments");
   revalidatePath(`/dashboard/students/${parsed.data.studentId}`);
