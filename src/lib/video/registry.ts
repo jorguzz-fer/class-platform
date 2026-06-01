@@ -101,6 +101,41 @@ export function getVideoProvider(id: string | null | undefined): VideoProvider |
   return BY_ID.get(id) ?? null;
 }
 
+// Hosts confiáveis para embed via iframe no fallback (provider desconhecido,
+// ex.: aulas antigas). NUNCA renderizamos um iframe de origem arbitrária —
+// isso evitaria clickjacking/phishing dentro do domínio confiável da escola.
+const TRUSTED_EMBED_HOSTS = [
+  "youtube.com",
+  "www.youtube.com",
+  "youtube-nocookie.com",
+  "www.youtube-nocookie.com",
+  "player.vimeo.com",
+];
+
+/** Valida que a URL é https e (para iframe) de um host confiável. */
+function safeEmbedFromUrl(rawUrl: string): EmbedTarget {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    return { type: "none" };
+  }
+  // Só https (bloqueia javascript:, data:, http: misto).
+  if (url.protocol !== "https:") return { type: "none" };
+
+  // Arquivo direto de mídia → player nativo (qualquer host https é aceitável;
+  // <video> não executa scripts da origem).
+  if (/\.(mp4|webm|ogg|m3u8)(\?|$)/i.test(url.pathname)) {
+    return { type: "native", src: url.toString() };
+  }
+
+  // Iframe só de host confiável.
+  if (TRUSTED_EMBED_HOSTS.includes(url.hostname)) {
+    return { type: "iframe", src: url.toString() };
+  }
+  return { type: "none" };
+}
+
 /** Resolve a fonte do player a partir dos dados salvos na aula. */
 export function resolveEmbed(data: {
   videoProvider: string | null;
@@ -111,13 +146,10 @@ export function resolveEmbed(data: {
   if (provider) {
     return provider.toEmbed({ videoId: data.videoId, videoUrl: data.videoUrl });
   }
-  // Sem provider conhecido: se houver uma URL, tenta usá-la diretamente
-  // (compatível com aulas antigas que guardaram só videoUrl de embed).
+  // Provider desconhecido (ex.: aula antiga "mux"/"bunny"): se guardou uma URL,
+  // tenta resolver com validação estrita de protocolo/host.
   if (data.videoUrl) {
-    const isFile = /\.(mp4|webm|ogg|m3u8)(\?|$)/i.test(data.videoUrl);
-    return isFile
-      ? { type: "native", src: data.videoUrl }
-      : { type: "iframe", src: data.videoUrl };
+    return safeEmbedFromUrl(data.videoUrl);
   }
   return { type: "none" };
 }
@@ -134,7 +166,8 @@ function extractYouTubeId(input: string): string | null {
     if (host === "youtu.be") {
       return url.pathname.slice(1) || null;
     }
-    if (host.endsWith("youtube.com")) {
+    // Igualdade exata de host (evita evilyoutube.com etc.).
+    if (host === "youtube.com" || host === "m.youtube.com") {
       // /watch?v=ID
       const v = url.searchParams.get("v");
       if (v) return v;
@@ -153,7 +186,9 @@ function extractVimeoId(input: string): string | null {
   if (/^\d+$/.test(input)) return input;
   try {
     const url = new URL(input);
-    if (url.hostname.replace(/^www\./, "").endsWith("vimeo.com")) {
+    const host = url.hostname.replace(/^www\./, "");
+    // Igualdade exata de host (evita fakevimeo.com etc.).
+    if (host === "vimeo.com" || host === "player.vimeo.com") {
       const m = url.pathname.match(/\/(\d+)/);
       if (m) return m[1];
     }

@@ -77,9 +77,11 @@ export async function updateLesson(
       title: input.title,
       description: input.description || null,
       contentType: input.contentType,
-      videoProvider: input.videoProvider || null,
-      videoId: input.videoId || null,
-      videoUrl: input.videoUrl || null,
+      // Campos de vídeo `undefined` significam "manter o atual": omitimos da
+      // gravação para não apagar o vídeo ao editar outros campos.
+      ...(input.videoProvider !== undefined ? { videoProvider: input.videoProvider || null } : {}),
+      ...(input.videoId !== undefined ? { videoId: input.videoId || null } : {}),
+      ...(input.videoUrl !== undefined ? { videoUrl: input.videoUrl || null } : {}),
       textContent: input.textContent || null,
       durationMinutes: input.durationMinutes ?? null,
       isPreview: input.isPreview,

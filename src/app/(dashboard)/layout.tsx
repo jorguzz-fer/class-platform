@@ -1,4 +1,4 @@
-import { requireActiveOrg } from "@/lib/tenant";
+import { requireStaff } from "@/lib/tenant";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 
@@ -7,9 +7,10 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Exige sessão + organização ativa. O middleware já protege /dashboard;
-  // este guard garante o contexto de tenant e bloqueia org suspensa (§11.1).
-  const ctx = await requireActiveOrg();
+  // Exige membro da EQUIPE (não-aluno) + organização ativa. O middleware protege
+  // /dashboard (exige login); este guard impede que um STUDENT acesse o painel
+  // administrativo e bloqueia org suspensa (§11.1).
+  const ctx = await requireStaff();
 
   return (
     <div className="flex min-h-screen">

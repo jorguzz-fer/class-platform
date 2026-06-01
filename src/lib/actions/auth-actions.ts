@@ -7,6 +7,7 @@ import { signIn, signOut } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { registerSchema, loginSchema } from "@/lib/validators";
 import { CONSENT_DOCS } from "@/lib/consent";
+import { getClientIp } from "@/lib/request-info";
 
 export type FormState = {
   error?: string;
@@ -90,6 +91,7 @@ export async function registerAction(
   const passwordHash = await bcrypt.hash(password, 12);
   const now = new Date();
   const trialEndsAt = new Date(now.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+  const ipAddress = await getClientIp();
 
   try {
     await db.$transaction(async (tx) => {
@@ -97,18 +99,21 @@ export async function registerAction(
         data: { name, email, passwordHash, role: "ORG_OWNER" },
       });
 
-      // LGPD: registra o aceite de Termos e Política de Privacidade.
+      // LGPD: registra o aceite de Termos e Política de Privacidade, com IP
+      // para accountability (prova de quem/quando aceitou).
       await tx.consentRecord.createMany({
         data: [
           {
             userId: user.id,
             type: "TERMS_OF_SERVICE",
             version: CONSENT_DOCS.TERMS_OF_SERVICE.version,
+            ipAddress,
           },
           {
             userId: user.id,
             type: "PRIVACY_POLICY",
             version: CONSENT_DOCS.PRIVACY_POLICY.version,
+            ipAddress,
           },
         ],
       });

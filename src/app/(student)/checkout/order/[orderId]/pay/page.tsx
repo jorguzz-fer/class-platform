@@ -3,7 +3,7 @@ import { CreditCard } from "lucide-react";
 
 import { requireOrg } from "@/lib/tenant";
 import { getOrder } from "@/services/order.service";
-import { isRealPaymentEnabled } from "@/lib/payment";
+import { isMockPaymentAllowed } from "@/lib/payment";
 import { MockPayButton } from "@/components/student/mock-pay-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -26,7 +26,7 @@ export default async function MockPayPage({
   const order = await getOrder(orderId, ctx.userId);
   if (!order) notFound();
 
-  const realPayment = isRealPaymentEnabled();
+  const mockAllowed = isMockPaymentAllowed();
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
@@ -50,11 +50,7 @@ export default async function MockPayPage({
 
           {order.status === "PAID" ? (
             <p className="text-sm text-primary">Pagamento confirmado. Acesso liberado!</p>
-          ) : realPayment ? (
-            <p className="text-sm text-muted-foreground">
-              Você seria redirecionado ao gateway de pagamento.
-            </p>
-          ) : (
+          ) : mockAllowed ? (
             <>
               <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground">
                 Ambiente de demonstração: nenhum pagamento real é processado.
@@ -62,6 +58,10 @@ export default async function MockPayPage({
               </p>
               <MockPayButton orderId={orderId} />
             </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Você seria redirecionado ao gateway de pagamento.
+            </p>
           )}
         </CardContent>
       </Card>

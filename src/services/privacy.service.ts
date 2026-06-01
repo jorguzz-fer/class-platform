@@ -19,6 +19,8 @@ export async function exportUserData(userId: string) {
       id: true,
       name: true,
       email: true,
+      phone: true,
+      avatarUrl: true,
       role: true,
       isActive: true,
       createdAt: true,
@@ -92,9 +94,10 @@ export async function anonymizeStudent(
 
   if (otherMemberships > 0) {
     // O usuário pertence a outras escolas: não anonimiza o User global, apenas
-    // desvincula desta org (remove membership + matrículas desta org).
+    // desvincula desta org (remove membership + matrículas + logs desta org).
     await db.$transaction([
       db.enrollment.deleteMany({ where: { organizationId, studentId } }),
+      db.notificationLog.deleteMany({ where: { organizationId, userId: studentId } }),
       db.organizationMember.delete({ where: { id: member.id } }),
     ]);
     return { ok: true, anonymized: false };
@@ -105,12 +108,21 @@ export async function anonymizeStudent(
   await db.$transaction([
     db.organizationMember.delete({ where: { id: member.id } }),
     db.passwordResetToken.deleteMany({ where: { userId: studentId } }),
-    db.consentRecord.deleteMany({ where: { userId: studentId } }),
+    // Purga o destino (email/telefone em claro) dos logs de notificação desta
+    // org — sem isso o titular continuaria reidentificável pelo rastro.
+    db.notificationLog.deleteMany({ where: { organizationId, userId: studentId } }),
+    // Anonimiza (não apaga) o consentimento: preserva a evidência de aceite
+    // (tipo/versão/data) para accountability, removendo a ligação direta ao IP.
+    db.consentRecord.updateMany({
+      where: { userId: studentId },
+      data: { ipAddress: null },
+    }),
     db.user.update({
       where: { id: studentId },
       data: {
         name: "Aluno anônimo",
         email: anonEmail,
+        phone: null,
         passwordHash: null,
         avatarUrl: null,
         isActive: false,

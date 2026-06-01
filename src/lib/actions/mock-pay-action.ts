@@ -5,17 +5,18 @@ import { redirect } from "next/navigation";
 import { requireOrg } from "@/lib/tenant";
 import { db } from "@/lib/db";
 import { markOrderPaid } from "@/services/order.service";
+import { isMockPaymentAllowed } from "@/lib/payment";
 
 /**
- * Confirmação de pagamento SIMULADA (provider mock). Só funciona quando o
- * provider real NÃO está configurado (PAYMENT_PROVIDER ausente) — em produção,
- * a confirmação vem pelo webhook do gateway, não por esta ação.
+ * Confirmação de pagamento SIMULADA (provider mock). Só funciona quando NENHUM
+ * sinal de pagamento real está configurado (fail-closed) — em produção, a
+ * confirmação vem pelo webhook do gateway, não por esta ação.
  *
  * Valida que o pedido pertence ao comprador logado antes de liberar acesso.
  */
 export async function confirmMockPaymentAction(orderId: string): Promise<{ error: string } | void> {
-  if (process.env.PAYMENT_PROVIDER) {
-    return { error: "Pagamento real configurado: use o gateway." };
+  if (!isMockPaymentAllowed()) {
+    return { error: "Confirmação simulada desabilitada: use o gateway de pagamento." };
   }
 
   const ctx = await requireOrg();

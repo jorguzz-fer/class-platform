@@ -113,24 +113,29 @@ function parseLesson(formData: FormData) {
 
 /**
  * Converte os dados do formulário (com `videoSource`) no formato do serviço,
- * normalizando a fonte do vídeo via o registry (videoId/videoUrl).
+ * normalizando a fonte do vídeo via o registry.
+ *
+ * Importante p/ EDIÇÃO: se `videoSource` vier vazio, os campos de vídeo ficam
+ * `undefined` (= "não alterar"). Assim, editar outros campos (título, duração)
+ * não apaga o vídeo já configurado. Em criação, undefined vira null no serviço.
  */
 function toLessonInput(
   data: ReturnType<typeof lessonSchema.parse>,
 ): LessonServiceInput {
   const provider = getVideoProvider(data.videoProvider || null);
-  const parsed =
-    provider && data.videoSource
-      ? provider.parse(data.videoSource)
-      : { videoId: null, videoUrl: null };
+  const hasNewSource = !!(provider && data.videoSource);
+  const parsed = hasNewSource
+    ? provider!.parse(data.videoSource!)
+    : { videoId: null, videoUrl: null };
 
   return {
     title: data.title,
     description: data.description,
     contentType: data.contentType,
-    videoProvider: provider && data.videoSource ? provider.id : null,
-    videoId: parsed.videoId,
-    videoUrl: parsed.videoUrl,
+    // undefined = manter o que já existe (não sobrescreve na edição).
+    videoProvider: hasNewSource ? provider!.id : undefined,
+    videoId: hasNewSource ? parsed.videoId : undefined,
+    videoUrl: hasNewSource ? parsed.videoUrl : undefined,
     textContent: data.textContent,
     durationMinutes: data.durationMinutes,
     isPreview: data.isPreview,

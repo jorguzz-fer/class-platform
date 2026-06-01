@@ -3,6 +3,7 @@ import type { UserRole } from "@prisma/client";
 
 import { auth } from "./auth";
 import { db } from "./db";
+import { isStaff } from "./permissions";
 
 export interface TenantContext {
   userId: string;
@@ -13,19 +14,51 @@ export interface TenantContext {
 }
 
 /**
- * Lê o contexto do usuário logado a partir da sessão.
- * Retorna null se não houver sessão.
+ * Lê o contexto do usuário logado a partir da sessão E revalida contra o banco.
+ *
+ * O JWT é apenas um ponteiro: papel, organização e status (isActive) são
+ * reconfirmados no banco a cada request. Assim, remover a associação, desativar
+ * a conta ou rebaixar o papel passam a ter efeito IMEDIATO, sem esperar o token
+ * expirar (corrige acesso revogado/estale). Custo: uma query indexada por id.
+ *
+ * Retorna null se não houver sessão, se o usuário estiver inativo, ou se o
+ * vínculo de organização não existir mais.
  */
 export async function getTenantContext(): Promise<TenantContext | null> {
   const session = await auth();
   if (!session?.user) return null;
 
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      isActive: true,
+      role: true,
+      memberships: { select: { organizationId: true, role: true } },
+    },
+  });
+  if (!user || !user.isActive) return null;
+
+  // Resolve a organização ativa do token; se o vínculo sumiu, acesso revogado.
+  const tokenOrgId = session.user.organizationId;
+  let organizationId: string | null = null;
+  let role = user.role;
+
+  if (tokenOrgId) {
+    const membership = user.memberships.find((m) => m.organizationId === tokenOrgId);
+    if (!membership) return null; // associação removida → sem acesso
+    organizationId = membership.organizationId;
+    role = membership.role; // papel ATUAL (reflete rebaixamento)
+  }
+
   return {
-    userId: session.user.id,
-    role: session.user.role,
-    organizationId: session.user.organizationId,
-    email: session.user.email ?? "",
-    name: session.user.name ?? "",
+    userId: user.id,
+    role,
+    organizationId,
+    email: user.email,
+    name: user.name,
   };
 }
 
@@ -63,6 +96,23 @@ export async function requireActiveOrg(): Promise<
   });
   if (!org || org.status === "SUSPENDED" || org.status === "CANCELED") {
     redirect("/suspended");
+  }
+  return ctx;
+}
+
+/**
+ * Exige um membro da EQUIPE da escola (owner/admin/instrutor/suporte) com a
+ * organização ativa. Use no layout do painel administrativo (/dashboard) para
+ * impedir que um STUDENT acesse páginas administrativas. As páginas continuam
+ * usando `can(...)` para gates finos por ação.
+ */
+export async function requireStaff(): Promise<
+  TenantContext & { organizationId: string }
+> {
+  const ctx = await requireActiveOrg();
+  if (!isStaff(ctx.role)) {
+    // Aluno logado tentando acessar o painel da escola: vai para a área do aluno.
+    redirect("/app");
   }
   return ctx;
 }

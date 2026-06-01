@@ -58,3 +58,13 @@ export const paymentProvider: PaymentProvider = resolveProvider();
 export function isRealPaymentEnabled(): boolean {
   return !!process.env.PAYMENT_PROVIDER;
 }
+
+/**
+ * A confirmação SIMULADA de pagamento (mock) só é permitida quando NENHUM sinal
+ * de pagamento real está configurado. Fail-closed: basta `PAYMENT_PROVIDER` OU
+ * `PAYMENT_WEBHOOK_SECRET` estarem presentes para desabilitar o mock — evita que
+ * um deploy com config parcial deixe um bypass de pagamento aberto.
+ */
+export function isMockPaymentAllowed(): boolean {
+  return !process.env.PAYMENT_PROVIDER && !process.env.PAYMENT_WEBHOOK_SECRET;
+}

@@ -2,7 +2,6 @@ import { Prisma } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { paymentProvider } from "@/lib/payment";
-import { enrollStudent } from "@/services/enrollment.service";
 import { onEnrollmentCreated } from "@/services/events.service";
 
 /**
@@ -136,42 +135,75 @@ export type MarkPaidResult =
 
 /**
  * Confirma o pagamento de um pedido e LIBERA O ACESSO (matrícula automática).
- * Idempotente: se já estava pago, não duplica matrícula nem incrementa cupom.
+ *
+ * Idempotência e atomicidade (corrige race / re-entrega de webhook):
+ * - A transição PENDING→PAID é feita por um `updateMany` CONDICIONAL
+ *   (where status PENDING). Só UMA chamada concorrente vence (count === 1);
+ *   re-entregas e corridas viram no-op (alreadyPaid).
+ * - A matrícula e o incremento do cupom acontecem na MESMA transação que a
+ *   transição de status. Se a matrícula falhar, tudo reverte (não cobra/queima
+ *   cupom sem liberar acesso).
+ * - O evento (notificação/webhook) é disparado FORA da transação, só após o
+ *   commit, para não emitir efeitos colaterais em caso de rollback.
  */
 export async function markOrderPaid(orderId: string): Promise<MarkPaidResult> {
   const order = await db.order.findUnique({
     where: { id: orderId },
     select: {
-      id: true,
       organizationId: true,
       courseId: true,
       buyerId: true,
       couponId: true,
-      status: true,
     },
   });
   if (!order) return { ok: false, error: "Pedido não encontrado." };
-  if (order.status === "PAID") return { ok: true, alreadyPaid: true };
 
-  await db.order.update({
-    where: { id: orderId },
-    data: { status: "PAID", paidAt: new Date() },
-  });
+  let shouldNotify = false;
+  try {
+    await db.$transaction(async (tx) => {
+      // Guarda atômica: vence só quem encontrar o pedido ainda PENDING.
+      const claimed = await tx.order.updateMany({
+        where: { id: orderId, status: "PENDING" },
+        data: { status: "PAID", paidAt: new Date() },
+      });
+      if (claimed.count === 0) {
+        // Já pago/processado por outra chamada: no-op idempotente.
+        return;
+      }
 
-  // Incrementa uso do cupom, se houver.
-  if (order.couponId) {
-    await db.coupon.update({
-      where: { id: order.couponId },
-      data: { redemptions: { increment: 1 } },
+      if (order.couponId) {
+        await tx.coupon.update({
+          where: { id: order.couponId },
+          data: { redemptions: { increment: 1 } },
+        });
+      }
+
+      // Libera o acesso na mesma transação. Se falhar, lança e reverte tudo.
+      await tx.enrollment.upsert({
+        where: {
+          courseId_studentId: { courseId: order.courseId, studentId: order.buyerId },
+        },
+        update: {},
+        create: {
+          organizationId: order.organizationId,
+          courseId: order.courseId,
+          studentId: order.buyerId,
+          status: "ACTIVE",
+        },
+      });
+
+      shouldNotify = true;
     });
+  } catch {
+    return { ok: false, error: "Falha ao confirmar o pagamento." };
   }
 
-  // Libera o acesso: matrícula automática + evento (notificação/webhook).
-  const enrolled = await enrollStudent(order.organizationId, order.buyerId, order.courseId);
-  if (enrolled.ok) {
-    await onEnrollmentCreated(order.organizationId, order.buyerId, order.courseId);
+  if (!shouldNotify) {
+    return { ok: true, alreadyPaid: true };
   }
 
+  // Efeitos colaterais externos só após o commit.
+  await onEnrollmentCreated(order.organizationId, order.buyerId, order.courseId);
   return { ok: true, alreadyPaid: false };
 }
 

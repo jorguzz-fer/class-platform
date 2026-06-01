@@ -22,7 +22,8 @@ export const authConfig = {
       const isProtected =
         path.startsWith("/dashboard") ||
         path.startsWith("/admin") ||
-        path.startsWith("/app");
+        path.startsWith("/app") ||
+        path.startsWith("/checkout");
       if (isProtected) return isLoggedIn;
       return true;
     },

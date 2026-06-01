@@ -81,15 +81,15 @@ export async function onCertificateIssued(
       where: { id: certificateId },
       select: {
         certificateNumber: true,
-        verificationCode: true,
         student: { select: { id: true, name: true } },
         course: { select: { title: true } },
       },
     });
     if (!cert) return;
+    // NÃO incluir verificationCode no payload externo: é o segredo que valida a
+    // autenticidade do certificado. O número público basta para o evento.
     await dispatchEvent(organizationId, "certificate.issued", {
       certificateNumber: cert.certificateNumber,
-      verificationCode: cert.verificationCode,
       studentId: cert.student.id,
       studentName: cert.student.name,
       courseTitle: cert.course.title,

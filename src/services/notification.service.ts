@@ -43,9 +43,12 @@ export async function notify(params: {
     let error: string | null = null;
     try {
       await c.run();
-    } catch (e) {
+    } catch {
       status = "FAILED";
-      error = e instanceof Error ? e.message : "erro desconhecido";
+      // Não persistimos a mensagem crua do provider: ela pode embutir o
+      // destinatário ou outros dados. Guardamos um motivo genérico; detalhes
+      // ficam apenas no log do servidor (não no banco/UI).
+      error = "falha no envio";
     }
     await db.notificationLog.create({
       data: {

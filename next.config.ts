@@ -19,6 +19,9 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false, // não expõe "X-Powered-By: Next.js"
+  // Build standalone: gera .next/standalone com server.js + deps mínimas,
+  // ideal para imagem Docker enxuta (deploy via Coolify).
+  output: "standalone",
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
