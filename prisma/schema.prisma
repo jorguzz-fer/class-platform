@@ -41,6 +41,7 @@ model User {
   posts              Post[]
   comments           Comment[]
   postLikes          PostLike[]
+  orders             Order[]
 }
 
 // Registro de consentimento (LGPD): aceite de Termos/Privacidade com versão.
@@ -85,6 +86,8 @@ model Organization {
   cohorts      Cohort[]
   posts        Post[]
   comments     Comment[]
+  coupons      Coupon[]
+  orders       Order[]
 }
 
 model OrganizationMember {
@@ -153,6 +156,7 @@ model Course {
   certificates Certificate[]
   cohorts      Cohort[]
   posts        Post[]
+  orders       Order[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
@@ -561,6 +565,60 @@ model PostLike {
 }
 
 // ----------------------------------------------------------------------------
+// Vendas e Checkout: cupons e pedidos (Fase 2)
+// ----------------------------------------------------------------------------
+
+// Cupom de desconto da escola (percentual ou valor fixo).
+model Coupon {
+  id             String       @id @default(cuid())
+  organizationId String
+  code           String
+  discountType   DiscountType
+  discountValue  Decimal // percentual (0-100) ou valor fixo na moeda
+  maxRedemptions Int? // null = ilimitado
+  redemptions    Int          @default(0)
+  expiresAt      DateTime?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orders       Order[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+}
+
+// Pedido de compra de um curso. A liberação de acesso (matrícula) ocorre quando
+// o pagamento é confirmado (status PAID) — via webhook do gateway ou retorno.
+model Order {
+  id             String      @id @default(cuid())
+  organizationId String
+  courseId       String
+  buyerId        String
+  couponId       String?
+  amount         Decimal // valor final cobrado (após desconto)
+  currency       String      @default("BRL")
+  status         OrderStatus @default(PENDING)
+  paymentMethod  String? // PIX, CARD, BOLETO
+  gatewayProvider String?
+  gatewayRef     String? // id da transação no gateway
+  paidAt         DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  course       Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  buyer        User         @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  coupon       Coupon?      @relation(fields: [couponId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([courseId])
+  @@index([buyerId])
+  @@index([gatewayRef])
+}
+
+// ----------------------------------------------------------------------------
 // Enums
 // ----------------------------------------------------------------------------
 
@@ -654,4 +712,17 @@ enum CohortStatus {
   ACTIVE
   COMPLETED
   ARCHIVED
+}
+
+enum DiscountType {
+  PERCENT
+  FIXED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  CANCELED
 }

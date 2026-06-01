@@ -94,11 +94,15 @@ export default async function PublicCoursePage({
         ))}
       </div>
 
-      <div className="mt-8 rounded-lg border bg-muted/30 p-6 text-center">
-        <p className="text-sm text-muted-foreground">
-          A compra e a matrícula online estarão disponíveis em breve. Entre em
-          contato com a escola para se matricular.
-        </p>
+      <div className="mt-8 flex flex-col items-center gap-3 rounded-lg border bg-muted/30 p-6 text-center">
+        <p className="text-lg font-semibold">{price(course.price, course.currency)}</p>
+        <Link
+          href={`/checkout/${courseSlug}`}
+          className="inline-flex h-10 items-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          {Number(course.price ?? 0) === 0 ? "Matricular-se" : "Comprar curso"}
+        </Link>
+        <p className="text-xs text-muted-foreground">É necessário entrar para concluir a compra.</p>
       </div>
     </div>
   );

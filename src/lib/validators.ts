@@ -260,3 +260,28 @@ export const commentSchema = z.object({
 
 export type CreatePostInput = z.infer<typeof createPostSchema>;
 export type CommentInput = z.infer<typeof commentSchema>;
+
+// ---------------------------------------------------------------------------
+// Vendas e Checkout (Fase 2)
+// ---------------------------------------------------------------------------
+
+export const createCouponSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .min(3, "Mínimo de 3 caracteres")
+    .max(40)
+    .regex(/^[A-Z0-9_-]+$/, "Use letras, números, hífen ou underline"),
+  discountType: z.enum(["PERCENT", "FIXED"]),
+  discountValue: z.coerce.number().positive("Valor inválido").max(1_000_000),
+  maxRedemptions: z.coerce.number().int().positive().max(1_000_000).optional(),
+});
+
+export const checkoutSchema = z.object({
+  method: z.enum(["PIX", "CARD", "BOLETO"]),
+  couponCode: z.string().trim().toUpperCase().max(40).optional().or(z.literal("")),
+});
+
+export type CreateCouponInput = z.infer<typeof createCouponSchema>;
+export type CheckoutInput = z.infer<typeof checkoutSchema>;
