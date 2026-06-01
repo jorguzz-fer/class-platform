@@ -219,3 +219,28 @@ export const aiOutlineSchema = z.object({
 });
 
 export type AIOutlineInput = z.infer<typeof aiOutlineSchema>;
+
+// ---------------------------------------------------------------------------
+// B2B / Enterprise (Fase 6)
+// ---------------------------------------------------------------------------
+
+export const createCompanySchema = z.object({
+  name: z.string().trim().min(2, "Informe o nome da empresa").max(160),
+  cnpj: z.string().trim().max(20).optional().or(z.literal("")),
+  contactEmail: z.string().trim().toLowerCase().email("E-mail inválido").max(160).optional().or(z.literal("")),
+});
+
+export const addManagerSchema = z.object({
+  name: z.string().trim().min(2, "Informe o nome").max(120),
+  email: z.string().trim().toLowerCase().email("E-mail inválido").max(160),
+});
+
+export const createCohortSchema = z.object({
+  companyId: z.string().min(1),
+  courseId: z.string().min(1, "Selecione um curso"),
+  name: z.string().trim().min(2, "Informe o nome da turma").max(160),
+});
+
+export type CreateCompanyInput = z.infer<typeof createCompanySchema>;
+export type AddManagerInput = z.infer<typeof addManagerSchema>;
+export type CreateCohortInput = z.infer<typeof createCohortSchema>;

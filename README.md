@@ -97,8 +97,33 @@ nunca confie em ids vindos do cliente.
 10. ✅ Hardening (isolamento multi-tenant, headers de segurança, bloqueio de
     org suspensa, AuditLog para PII)
 
-**Preparado mas não implementado** (pós-MVP, ver `SPEC.md` §18): checkout/
-pagamentos, comunidade, IA, WhatsApp, SSO, page builder, marketplace.
+**Pós-MVP entregue** (ver `SPEC.md` §18):
+
+- ✅ **LGPD**: consentimento/termos, exportação de dados, anonimização.
+- ✅ **Reset de senha** por e-mail (token seguro) + provider Resend plugável.
+- ✅ **Super Admin** (`/admin`), **escola pública** (`/s/[slug]`), configurações
+  (marca/domínio/equipe), perfil do aluno, cobrança.
+- ✅ **Fase 4 — IA**: geração de curso, quiz, resumo e tutor (Claude via
+  `@anthropic-ai/sdk`, com provider mock padrão).
+- ✅ **Fase 5 — WhatsApp & Automações**: notificações multicanal, webhooks de
+  saída (HMAC) para n8n/Zapier, recuperação de inativos.
+- ✅ **Fase 6 — B2B/Enterprise**: empresas clientes, gestores, turmas
+  corporativas (cohorts) e relatórios por equipe.
+
+**Ainda não implementado** (previsto na arquitetura): checkout/pagamentos
+(Fase 2), comunidade (Fase 3), SSO, page builder, marketplace.
+
+### Providers plugáveis por ambiente (sem segredos no código)
+
+Todos seguem o mesmo padrão: **mock/dev por padrão** (zero custo/credencial) e
+provider real ativado por variável de ambiente.
+
+| Recurso | Env | Sem a env |
+| --- | --- | --- |
+| IA | `ANTHROPIC_API_KEY` | provider mock (respostas simuladas) |
+| E-mail | `RESEND_API_KEY` | loga no servidor |
+| WhatsApp | `WHATSAPP_API_URL` + `WHATSAPP_API_TOKEN` | loga no servidor |
+| Automações (cron) | `CRON_SECRET` | rota desabilitada (503) |
 
 ### Segurança & LGPD
 
@@ -106,5 +131,5 @@ pagamentos, comunidade, IA, WhatsApp, SSO, page builder, marketplace.
 - Isolamento por `organizationId` em todos os serviços (validado por testes).
 - Headers de segurança (HSTS, nosniff, X-Frame-Options, Permissions-Policy).
 - `AuditLog` registra ações sobre PII (accountability).
-- Itens LGPD pendentes (consentimento/termos, exportação, anonimização,
-  retenção) estão mapeados no planejamento para evolução.
+- LGPD: consentimento no cadastro, exportação (`/api/me/export`) e anonimização.
+- Webhooks de saída assinados com HMAC-SHA256.

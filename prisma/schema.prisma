@@ -36,6 +36,8 @@ model User {
   auditLogs    AuditLog[]
   resetTokens  PasswordResetToken[]
   consents     ConsentRecord[]
+  companyMemberships CompanyMember[]
+  cohortMemberships  CohortMember[]
 }
 
 // Registro de consentimento (LGPD): aceite de Termos/Privacidade com versão.
@@ -76,6 +78,8 @@ model Organization {
   auditLogs    AuditLog[]
   webhooks     Webhook[]
   notifications NotificationLog[]
+  companies    Company[]
+  cohorts      Cohort[]
 }
 
 model OrganizationMember {
@@ -142,6 +146,7 @@ model Course {
   enrollments  Enrollment[]
   progress     LessonProgress[]
   certificates Certificate[]
+  cohorts      Cohort[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
@@ -417,6 +422,80 @@ model NotificationLog {
 }
 
 // ----------------------------------------------------------------------------
+// B2B / Enterprise: empresas clientes, gestores e turmas corporativas (Fase 6)
+// ----------------------------------------------------------------------------
+
+// Empresa cliente DENTRO de uma escola (organização). Permite a uma escola
+// vender/gerir treinamentos para empresas, com gestores e turmas próprias.
+model Company {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  cnpj           String?
+  contactEmail   String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      CompanyMember[]
+  cohorts      Cohort[]
+
+  @@index([organizationId])
+}
+
+// Gestor de uma empresa (usuário que acompanha as turmas/relatórios da empresa).
+model CompanyMember {
+  id        String   @id @default(cuid())
+  companyId String
+  userId    String
+  role      CompanyRole @default(MANAGER)
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@index([userId])
+}
+
+// Turma corporativa: vincula uma empresa a um curso, com um grupo de alunos.
+model Cohort {
+  id             String       @id @default(cuid())
+  organizationId String
+  companyId      String
+  courseId       String
+  name           String
+  startsAt       DateTime?
+  endsAt         DateTime?
+  status         CohortStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  course       Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  members      CohortMember[]
+
+  @@index([organizationId])
+  @@index([companyId])
+  @@index([courseId])
+}
+
+model CohortMember {
+  id        String   @id @default(cuid())
+  cohortId  String
+  studentId String
+  createdAt DateTime @default(now())
+
+  cohort  Cohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([cohortId, studentId])
+  @@index([studentId])
+}
+
+// ----------------------------------------------------------------------------
 // Enums
 // ----------------------------------------------------------------------------
 
@@ -499,4 +578,15 @@ enum DeliveryStatus {
 enum NotificationChannel {
   EMAIL
   WHATSAPP
+}
+
+enum CompanyRole {
+  MANAGER
+  VIEWER
+}
+
+enum CohortStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
 }
