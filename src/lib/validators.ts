@@ -207,3 +207,15 @@ export const updateProfileSchema = z.object({
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+
+// ---------------------------------------------------------------------------
+// IA (Fase 4)
+// ---------------------------------------------------------------------------
+
+export const aiOutlineSchema = z.object({
+  topic: z.string().trim().min(3, "Descreva o tema do curso").max(200),
+  level: z.string().trim().max(40).optional().or(z.literal("")),
+  audience: z.string().trim().max(120).optional().or(z.literal("")),
+});
+
+export type AIOutlineInput = z.infer<typeof aiOutlineSchema>;

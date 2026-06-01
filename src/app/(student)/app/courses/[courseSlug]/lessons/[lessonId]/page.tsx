@@ -4,7 +4,9 @@ import { ArrowLeft, Download, FileText } from "lucide-react";
 
 import { requireOrg } from "@/lib/tenant";
 import { getLessonForPlayer } from "@/services/progress.service";
+import { getOrgPlan } from "@/services/school.service";
 import { LessonCompleteButton } from "@/components/student/lesson-complete-button";
+import { TutorChat } from "@/components/student/tutor-chat";
 import { Card, CardContent } from "@/components/ui/card";
 
 /** Renderiza o conteúdo da aula conforme o tipo. */
@@ -64,6 +66,9 @@ export default async function LessonPlayerPage({
 
   const { lesson, attachments, completed, nextLessonId } = data;
 
+  const plan = await getOrgPlan(ctx.organizationId);
+  const aiEnabled = plan?.hasAiFeatures ?? false;
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <Link
@@ -115,6 +120,8 @@ export default async function LessonPlayerPage({
           nextLessonId={nextLessonId}
         />
       </div>
+
+      {aiEnabled && <TutorChat courseId={lesson.courseId} lessonId={lesson.id} />}
     </div>
   );
 }

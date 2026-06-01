@@ -1,15 +1,21 @@
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
+import { redirect } from "next/navigation";
 
 import { requireOrg } from "@/lib/tenant";
 import { can } from "@/lib/permissions";
-import { redirect } from "next/navigation";
+import { getOrgPlan } from "@/services/school.service";
 import { createCourseAction } from "@/lib/actions/course-actions";
 import { CourseForm } from "@/components/forms/course-form";
+import { AIOutlineForm } from "@/components/forms/ai-outline-form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function NewCoursePage() {
   const ctx = await requireOrg();
   if (!can(ctx.role, "course:create")) redirect("/dashboard/courses");
+
+  const plan = await getOrgPlan(ctx.organizationId);
+  const aiEnabled = plan?.hasAiFeatures ?? false;
 
   return (
     <div className="flex flex-col gap-6">
@@ -27,7 +33,28 @@ export default async function NewCoursePage() {
         </p>
       </div>
 
-      <CourseForm action={createCourseAction} submitLabel="Criar curso" />
+      {aiEnabled && (
+        <Card className="border-primary/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Sparkles className="h-4 w-4" />
+              Criar com IA
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AIOutlineForm />
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Criar manualmente</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CourseForm action={createCourseAction} submitLabel="Criar curso" />
+        </CardContent>
+      </Card>
     </div>
   );
 }
