@@ -1,3 +1,5 @@
+import { Download } from "lucide-react";
+
 import { requireOrg } from "@/lib/tenant";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -25,6 +27,24 @@ export default async function StudentProfilePage() {
           <p className="text-xs text-muted-foreground">
             A edição de perfil será habilitada em breve.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Privacidade (LGPD)</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <p className="text-sm text-muted-foreground">
+            Você pode baixar uma cópia de todos os seus dados pessoais.
+          </p>
+          <a
+            href="/api/me/export"
+            className="inline-flex h-9 w-fit items-center gap-2 rounded-md border bg-background px-4 text-sm font-medium hover:bg-accent"
+          >
+            <Download className="h-4 w-4" />
+            Exportar meus dados
+          </a>
         </CardContent>
       </Card>
     </div>

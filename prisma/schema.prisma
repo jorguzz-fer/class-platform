@@ -23,6 +23,7 @@ model User {
   role         UserRole  @default(STUDENT)
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
+  anonymizedAt DateTime? // LGPD: marca quando o usuário foi anonimizado
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -33,6 +34,21 @@ model User {
   certificates Certificate[]
   auditLogs    AuditLog[]
   resetTokens  PasswordResetToken[]
+  consents     ConsentRecord[]
+}
+
+// Registro de consentimento (LGPD): aceite de Termos/Privacidade com versão.
+model ConsentRecord {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String // ex.: "TERMS_OF_SERVICE", "PRIVACY_POLICY"
+  version   String // versão do documento aceito
+  grantedAt DateTime @default(now())
+  ipAddress String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Organization {

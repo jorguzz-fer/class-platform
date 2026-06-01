@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { signIn, signOut } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { registerSchema, loginSchema } from "@/lib/validators";
+import { CONSENT_DOCS } from "@/lib/consent";
 
 export type FormState = {
   error?: string;
@@ -66,6 +67,7 @@ export async function registerAction(
     password: formData.get("password"),
     schoolName: formData.get("schoolName"),
     schoolSlug: formData.get("schoolSlug"),
+    acceptTerms: formData.get("acceptTerms"),
   });
 
   if (!parsed.success) {
@@ -93,6 +95,22 @@ export async function registerAction(
     await db.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: { name, email, passwordHash, role: "ORG_OWNER" },
+      });
+
+      // LGPD: registra o aceite de Termos e Política de Privacidade.
+      await tx.consentRecord.createMany({
+        data: [
+          {
+            userId: user.id,
+            type: "TERMS_OF_SERVICE",
+            version: CONSENT_DOCS.TERMS_OF_SERVICE.version,
+          },
+          {
+            userId: user.id,
+            type: "PRIVACY_POLICY",
+            version: CONSENT_DOCS.PRIVACY_POLICY.version,
+          },
+        ],
       });
 
       const organization = await tx.organization.create({

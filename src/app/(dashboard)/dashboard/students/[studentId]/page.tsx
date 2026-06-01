@@ -10,6 +10,7 @@ import { listEnrollableCourses } from "@/services/course.service";
 import { EnrollStudentForm } from "@/components/dashboard/enroll-student-form";
 import { EnrollmentRowActions } from "@/components/dashboard/enrollment-row-actions";
 import { EnrollmentStatusBadge } from "@/components/dashboard/enrollment-status-badge";
+import { AnonymizeStudentButton } from "@/components/dashboard/anonymize-student-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function StudentDetailPage({
@@ -97,6 +98,21 @@ export default async function StudentDetailPage({
           )}
         </CardContent>
       </Card>
+
+      {can(ctx.role, "student:manage") && (
+        <Card className="border-destructive/40">
+          <CardHeader>
+            <CardTitle className="text-base">Privacidade (LGPD)</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <p className="text-sm text-muted-foreground">
+              Anonimizar remove os dados pessoais do aluno (direito ao
+              esquecimento), preservando o histórico de forma anônima.
+            </p>
+            <AnonymizeStudentButton studentId={student.id} />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

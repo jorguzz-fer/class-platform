@@ -75,6 +75,24 @@ export function RegisterForm() {
         <FieldError messages={state?.fieldErrors?.schoolSlug} />
       </div>
 
+      <div className="flex flex-col gap-1">
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="acceptTerms" className="mt-1" required />
+          <span>
+            Li e aceito os{" "}
+            <Link href="/terms" className="text-primary hover:underline">
+              Termos de Uso
+            </Link>{" "}
+            e a{" "}
+            <Link href="/privacy" className="text-primary hover:underline">
+              Política de Privacidade
+            </Link>
+            .
+          </span>
+        </label>
+        <FieldError messages={state?.fieldErrors?.acceptTerms} />
+      </div>
+
       {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
 
       <SubmitButton />

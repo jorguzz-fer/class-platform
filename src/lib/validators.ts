@@ -26,6 +26,10 @@ export const registerSchema = z.object({
   password: passwordSchema,
   schoolName: z.string().trim().min(2, "Informe o nome da escola").max(120),
   schoolSlug: slugSchema,
+  // LGPD: aceite obrigatório de Termos/Privacidade.
+  acceptTerms: z.literal("on", {
+    errorMap: () => ({ message: "É necessário aceitar os termos para continuar." }),
+  }),
 });
 
 export const loginSchema = z.object({
