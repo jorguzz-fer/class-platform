@@ -38,6 +38,9 @@ model User {
   consents     ConsentRecord[]
   companyMemberships CompanyMember[]
   cohortMemberships  CohortMember[]
+  posts              Post[]
+  comments           Comment[]
+  postLikes          PostLike[]
 }
 
 // Registro de consentimento (LGPD): aceite de Termos/Privacidade com versão.
@@ -80,6 +83,8 @@ model Organization {
   notifications NotificationLog[]
   companies    Company[]
   cohorts      Cohort[]
+  posts        Post[]
+  comments     Comment[]
 }
 
 model OrganizationMember {
@@ -147,6 +152,7 @@ model Course {
   progress     LessonProgress[]
   certificates Certificate[]
   cohorts      Cohort[]
+  posts        Post[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
@@ -195,6 +201,7 @@ model Lesson {
   module       Module             @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   attachments  LessonAttachment[]
   progress     LessonProgress[]
+  comments     Comment[]
 
   @@index([organizationId])
   @@index([courseId])
@@ -493,6 +500,64 @@ model CohortMember {
 
   @@unique([cohortId, studentId])
   @@index([studentId])
+}
+
+// ----------------------------------------------------------------------------
+// Comunidade: feed, posts, comentários e curtidas (Fase 3)
+// ----------------------------------------------------------------------------
+
+// Post do feed da escola. Opcionalmente vinculado a um curso (feed do curso).
+model Post {
+  id             String   @id @default(cuid())
+  organizationId String
+  authorId       String
+  courseId       String? // null = feed geral da escola
+  content        String
+  isPinned       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author       User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  course       Course?      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  comments     Comment[]
+  likes        PostLike[]
+
+  @@index([organizationId])
+  @@index([courseId])
+}
+
+// Comentário polimórfico: pertence a um Post OU a uma Lesson (exatamente um).
+model Comment {
+  id             String   @id @default(cuid())
+  organizationId String
+  authorId       String
+  postId         String?
+  lessonId       String?
+  content        String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author       User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  post         Post?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  lesson       Lesson?      @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([postId])
+  @@index([lessonId])
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([userId])
 }
 
 // ----------------------------------------------------------------------------

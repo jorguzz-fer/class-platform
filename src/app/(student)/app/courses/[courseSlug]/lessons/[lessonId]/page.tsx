@@ -3,10 +3,13 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Download, FileText } from "lucide-react";
 
 import { requireOrg } from "@/lib/tenant";
+import { isStaff } from "@/lib/permissions";
 import { getLessonForPlayer } from "@/services/progress.service";
 import { getOrgPlan } from "@/services/school.service";
+import { listLessonComments } from "@/services/community.service";
 import { LessonCompleteButton } from "@/components/student/lesson-complete-button";
 import { TutorChat } from "@/components/student/tutor-chat";
+import { LessonComments } from "@/components/student/lesson-comments";
 import { Card, CardContent } from "@/components/ui/card";
 
 /** Renderiza o conteúdo da aula conforme o tipo. */
@@ -69,6 +72,8 @@ export default async function LessonPlayerPage({
   const plan = await getOrgPlan(ctx.organizationId);
   const aiEnabled = plan?.hasAiFeatures ?? false;
 
+  const comments = await listLessonComments(ctx.organizationId, lesson.id);
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <Link
@@ -122,6 +127,19 @@ export default async function LessonPlayerPage({
       </div>
 
       {aiEnabled && <TutorChat courseId={lesson.courseId} lessonId={lesson.id} />}
+
+      <LessonComments
+        lessonId={lesson.id}
+        courseSlug={courseSlug}
+        currentUserId={ctx.userId}
+        isStaff={isStaff(ctx.role)}
+        comments={comments.map((c) => ({
+          id: c.id,
+          authorName: c.author.name,
+          authorId: c.author.id,
+          content: c.content,
+        }))}
+      />
     </div>
   );
 }

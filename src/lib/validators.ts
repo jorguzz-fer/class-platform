@@ -244,3 +244,19 @@ export const createCohortSchema = z.object({
 export type CreateCompanyInput = z.infer<typeof createCompanySchema>;
 export type AddManagerInput = z.infer<typeof addManagerSchema>;
 export type CreateCohortInput = z.infer<typeof createCohortSchema>;
+
+// ---------------------------------------------------------------------------
+// Comunidade (Fase 3)
+// ---------------------------------------------------------------------------
+
+export const createPostSchema = z.object({
+  content: z.string().trim().min(1, "Escreva algo").max(5000),
+  courseId: z.string().optional().or(z.literal("")),
+});
+
+export const commentSchema = z.object({
+  content: z.string().trim().min(1, "Escreva um comentário").max(2000),
+});
+
+export type CreatePostInput = z.infer<typeof createPostSchema>;
+export type CommentInput = z.infer<typeof commentSchema>;

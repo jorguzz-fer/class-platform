@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { GraduationCap, BookOpen, Award, User } from "lucide-react";
+import { GraduationCap, BookOpen, Award, User, Users } from "lucide-react";
 
 import { requireActiveOrg } from "@/lib/tenant";
 import { logoutAction } from "@/lib/actions/auth-actions";
@@ -27,6 +27,13 @@ export default async function StudentLayout({
             >
               <BookOpen className="h-4 w-4" />
               <span className="hidden sm:inline">Cursos</span>
+            </Link>
+            <Link
+              href="/app/community"
+              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Comunidade</span>
             </Link>
             <Link
               href="/app/certificates"
