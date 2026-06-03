@@ -36,7 +36,7 @@ COPY --from=build /app/.next/static ./.next/static
 # `public/` é opcional no Next; criamos vazio para servir assets previsivelmente.
 RUN mkdir -p ./public
 
-# Schema + migrations para rodar `migrate deploy` no deploy.
+# Schema + migrations + seed (.mjs) para rodar `migrate deploy` / seed no deploy.
 COPY --from=build /app/prisma ./prisma
 
 # CLI do Prisma para migrations. O standalone traz só o Client (runtime), não a

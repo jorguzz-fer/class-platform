@@ -78,20 +78,19 @@ setada). `migrate deploy` é idempotente — só aplica migrations pendentes.
 
 ## 5. Seed inicial (uma vez)
 
-Após o primeiro deploy, crie os planos SaaS e o usuário SUPER_ADMIN. No Coolify,
-abra um **terminal/exec** no container do app e rode:
+Após aplicar as migrations, crie os planos SaaS e o usuário SUPER_ADMIN. No
+**terminal/exec** do container do app, rode (o seed é JS puro — roda com `node`,
+sem depender de `tsx`):
 
 ```sh
-node node_modules/prisma/build/index.js db seed
+node prisma/seed.mjs
 ```
 
-(O seed usa `SEED_SUPERADMIN_EMAIL` / `SEED_SUPERADMIN_PASSWORD`.)
+(Usa `SEED_SUPERADMIN_EMAIL` / `SEED_SUPERADMIN_PASSWORD` das env vars.) É
+idempotente — pode rodar de novo sem duplicar.
 
-> Obs.: o seed (`prisma/seed.ts`) usa `tsx`, que é devDependency — pode não
-> estar na imagem de produção enxuta. Se o `db seed` falhar por isso, rode o
-> seed **localmente** apontando `DATABASE_URL` para o banco de produção, ou
-> rode-o a partir do estágio de build. Alternativa simples: criar o super admin
-> via SQL/Studio uma única vez.
+> Alternativa: `prisma db seed` (lê o comando de `package.json#prisma.seed`) —
+> mas o caminho direto acima é mais robusto na imagem standalone.
 
 > Alternativa: rodar uma vez localmente apontando `DATABASE_URL` para o banco de
 > produção.

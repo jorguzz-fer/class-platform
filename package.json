@@ -19,7 +19,7 @@
     "db:generate": "prisma generate"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "node prisma/seed.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",
