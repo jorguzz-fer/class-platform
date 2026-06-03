@@ -88,7 +88,9 @@ async function main() {
   const passwordHash = await bcrypt.hash(password, 12);
   await db.user.upsert({
     where: { email },
-    update: { role: "SUPER_ADMIN", isActive: true },
+    // Atualiza TAMBÉM o passwordHash: re-rodar o seed reaplica a senha atual
+    // (conserta execuções anteriores parciais ou senha trocada na env).
+    update: { role: "SUPER_ADMIN", isActive: true, passwordHash },
     create: {
       name: "Super Admin",
       email,
