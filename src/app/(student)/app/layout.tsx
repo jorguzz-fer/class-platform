@@ -5,6 +5,9 @@ import { requireActiveOrg } from "@/lib/tenant";
 import { logoutAction } from "@/lib/actions/auth-actions";
 import { Button } from "@/components/ui/button";
 
+// Área do aluno: sempre dinâmica (depende de sessão/banco).
+export const dynamic = "force-dynamic";
+
 export default async function StudentLayout({
   children,
 }: {

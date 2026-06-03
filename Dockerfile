@@ -26,19 +26,23 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
 
-# Artefatos do build standalone do Next (já incluem o node_modules traçado).
+# Artefatos do build standalone do Next.
+# IMPORTANTE: o standalone do Next JÁ inclui o Prisma Client gerado + o engine
+# (libquery_engine) — o app funciona sem copiar .prisma manualmente (e com pnpm
+# o client nem fica em node_modules/.prisma na raiz, e sim sob .pnpm).
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
-COPY --from=build /app/public ./public
 
-# Prisma: schema + migrations + Client GERADO + CLI/engines.
-# O Client gerado vive em node_modules/.prisma/client — ESSENCIAL copiar, senão
-# o runtime falha com "Prisma Client did not initialize". Copiamos os pacotes do
-# Prisma por cima do node_modules do standalone (complementa, não substitui).
+# `public/` é opcional no Next; criamos vazio para servir assets previsivelmente.
+RUN mkdir -p ./public
+
+# Schema + migrations para rodar `migrate deploy` no deploy.
 COPY --from=build /app/prisma ./prisma
-COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=build /app/node_modules/prisma ./node_modules/prisma
+
+# CLI do Prisma para migrations. O standalone traz só o Client (runtime), não a
+# CLI. Instalamos a CLI globalmente na versão exata — ela baixa o engine certo
+# para Alpine/musl. Evita depender dos caminhos com hash do pnpm.
+RUN npm install -g prisma@6.19.3
 
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x docker-entrypoint.sh && chown -R nextjs:nodejs /app

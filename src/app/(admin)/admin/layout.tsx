@@ -5,6 +5,9 @@ import { requireSuperAdmin } from "@/lib/tenant";
 import { logoutAction } from "@/lib/actions/auth-actions";
 import { Button } from "@/components/ui/button";
 
+// Painel da plataforma: sempre dinâmico (depende de sessão/banco).
+export const dynamic = "force-dynamic";
+
 const nav = [
   { href: "/admin", label: "Métricas", icon: BarChart3 },
   { href: "/admin/organizations", label: "Organizações", icon: Building2 },

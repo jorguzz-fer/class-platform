@@ -2,6 +2,10 @@ import { requireStaff } from "@/lib/tenant";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 
+// Painel administrativo: sempre dinâmico (depende de sessão/banco). Evita que o
+// Next tente pré-renderizar no build (que erra por não ter banco/sessão).
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({
   children,
 }: {
