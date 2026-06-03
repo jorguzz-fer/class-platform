@@ -8,6 +8,10 @@ import type { UserRole } from "@prisma/client";
  * Os providers (Credentials) são adicionados em `auth.ts`.
  */
 export const authConfig = {
+  // Confia no header Host repassado pelo proxy reverso (Coolify/Traefik, Nginx).
+  // Sem isso, o Auth.js v5 em produção atrás de proxy rejeita o fluxo de login
+  // (origem/host não confiável) — causa comum de "credencial válida mas não loga".
+  trustHost: true,
   pages: {
     signIn: "/login",
   },
