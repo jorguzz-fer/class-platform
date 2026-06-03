@@ -39,10 +39,11 @@ RUN mkdir -p ./public
 # Schema + migrations + seed (.mjs) para rodar `migrate deploy` / seed no deploy.
 COPY --from=build /app/prisma ./prisma
 
-# CLI do Prisma para migrations. O standalone traz só o Client (runtime), não a
-# CLI. Instalamos a CLI globalmente na versão exata — ela baixa o engine certo
-# para Alpine/musl. Evita depender dos caminhos com hash do pnpm.
-RUN npm install -g prisma@6.19.3
+# CLI do Prisma + bcryptjs para o seed/migrations. O standalone traz só o Client
+# (runtime do app); a CLI do Prisma não, e o bcryptjs é inlinado nos chunks do
+# Next (some do node_modules). Instalamos ambos globalmente na versão exata.
+# A CLI baixa o engine certo para Alpine/musl; bcryptjs garante o seed.
+RUN npm install -g prisma@6.19.3 bcryptjs@2.4.3
 
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x docker-entrypoint.sh && chown -R nextjs:nodejs /app

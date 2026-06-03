@@ -1,7 +1,21 @@
 // Seed em JS puro (ESM) — roda com `node` na imagem de produção (sem precisar
 // do tsx, que é devDependency). Cria os planos SaaS e o usuário SUPER_ADMIN.
+import { execSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
+
+// bcryptjs é inlinado nos chunks do Next (some do node_modules do standalone) e
+// é instalado globalmente na imagem (ver Dockerfile). Resolvemos a partir do
+// node_modules global do npm, com fallback para a resolução normal (dev local).
+function loadBcrypt() {
+  try {
+    return createRequire(import.meta.url)("bcryptjs");
+  } catch {
+    const globalRoot = execSync("npm root -g").toString().trim();
+    return createRequire(`${globalRoot}/`)("bcryptjs");
+  }
+}
+const bcrypt = loadBcrypt();
 
 const db = new PrismaClient();
 
