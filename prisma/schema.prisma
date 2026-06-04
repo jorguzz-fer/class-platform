@@ -1,0 +1,730 @@
+// ClassOS — SaaS multi-tenant de cursos
+// Multi-tenancy por coluna: toda tabela principal carrega organizationId.
+
+generator client {
+  provider = "prisma-client-js"
+  // Engines para o host de dev (nativo) e para a imagem Alpine/musl em produção.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// Usuários e organizações
+// ----------------------------------------------------------------------------
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  phone        String? // WhatsApp/telefone (E.164), opcional
+  passwordHash String?
+  avatarUrl    String?
+  role         UserRole  @default(STUDENT)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  anonymizedAt DateTime? // LGPD: marca quando o usuário foi anonimizado
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  memberships  OrganizationMember[]
+  courses      Course[]             @relation("InstructorCourses")
+  enrollments  Enrollment[]
+  progress     LessonProgress[]
+  certificates Certificate[]
+  auditLogs    AuditLog[]
+  resetTokens  PasswordResetToken[]
+  consents     ConsentRecord[]
+  companyMemberships CompanyMember[]
+  cohortMemberships  CohortMember[]
+  posts              Post[]
+  comments           Comment[]
+  postLikes          PostLike[]
+  orders             Order[]
+}
+
+// Registro de consentimento (LGPD): aceite de Termos/Privacidade com versão.
+model ConsentRecord {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String // ex.: "TERMS_OF_SERVICE", "PRIVACY_POLICY"
+  version   String // versão do documento aceito
+  grantedAt DateTime @default(now())
+  ipAddress String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Organization {
+  id                 String             @id @default(cuid())
+  name               String
+  slug               String             @unique
+  status             OrganizationStatus @default(TRIAL)
+  planId             String?
+  trialEndsAt        DateTime?
+  subscriptionStatus SubscriptionStatus @default(TRIALING)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  school       School?
+  members      OrganizationMember[]
+  courses      Course[]
+  modules      Module[]
+  lessons      Lesson[]
+  attachments  LessonAttachment[]
+  enrollments  Enrollment[]
+  progress     LessonProgress[]
+  certificates Certificate[]
+  subscription Subscription?
+  auditLogs    AuditLog[]
+  webhooks     Webhook[]
+  notifications NotificationLog[]
+  companies    Company[]
+  cohorts      Cohort[]
+  posts        Post[]
+  comments     Comment[]
+  coupons      Coupon[]
+  orders       Order[]
+}
+
+model OrganizationMember {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  role           UserRole
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+model School {
+  id              String   @id @default(cuid())
+  organizationId  String   @unique
+  name            String
+  description     String?
+  logoUrl         String?
+  faviconUrl      String?
+  primaryColor    String?
+  secondaryColor  String?
+  backgroundColor String?
+  customDomain    String?  @unique
+  subdomain       String?  @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------------------------------
+// Conteúdo: cursos, módulos, aulas, anexos
+// ----------------------------------------------------------------------------
+
+model Course {
+  id              String           @id @default(cuid())
+  organizationId  String
+  instructorId    String?
+  title           String
+  slug            String
+  subtitle        String?
+  description     String?
+  thumbnailUrl    String?
+  coverUrl        String?
+  status          CourseStatus     @default(DRAFT)
+  visibility      CourseVisibility @default(PRIVATE)
+  price           Decimal?
+  currency        String           @default("BRL")
+  durationMinutes Int?
+  level           CourseLevel      @default(ALL_LEVELS)
+  category        String?
+  publishedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  instructor   User?        @relation("InstructorCourses", fields: [instructorId], references: [id], onDelete: SetNull)
+  modules      Module[]
+  lessons      Lesson[]
+  enrollments  Enrollment[]
+  progress     LessonProgress[]
+  certificates Certificate[]
+  cohorts      Cohort[]
+  posts        Post[]
+  orders       Order[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([instructorId])
+}
+
+model Module {
+  id             String   @id @default(cuid())
+  organizationId String
+  courseId       String
+  title          String
+  description    String?
+  orderIndex     Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  course       Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons      Lesson[]
+
+  @@index([organizationId])
+  @@index([courseId])
+}
+
+model Lesson {
+  id              String            @id @default(cuid())
+  organizationId  String
+  courseId        String
+  moduleId        String
+  title           String
+  description     String?
+  contentType     LessonContentType @default(VIDEO)
+  videoProvider   String?
+  videoUrl        String?
+  videoId         String?
+  textContent     String?
+  durationMinutes Int?
+  orderIndex      Int
+  isPreview       Boolean           @default(false)
+  isRequired      Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  course       Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  module       Module             @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  attachments  LessonAttachment[]
+  progress     LessonProgress[]
+  comments     Comment[]
+
+  @@index([organizationId])
+  @@index([courseId])
+  @@index([moduleId])
+}
+
+model LessonAttachment {
+  id             String   @id @default(cuid())
+  organizationId String
+  lessonId       String
+  fileName       String
+  fileUrl        String
+  fileType       String?
+  fileSize       Int?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lesson       Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([lessonId])
+}
+
+// ----------------------------------------------------------------------------
+// Matrículas, progresso, certificados
+// ----------------------------------------------------------------------------
+
+model Enrollment {
+  id             String           @id @default(cuid())
+  organizationId String
+  courseId       String
+  studentId      String
+  status         EnrollmentStatus @default(ACTIVE)
+  enrolledAt     DateTime         @default(now())
+  expiresAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  course       Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student      User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, studentId])
+  @@index([organizationId])
+  @@index([studentId])
+}
+
+model LessonProgress {
+  id                 String         @id @default(cuid())
+  organizationId     String
+  studentId          String
+  courseId           String
+  lessonId           String
+  status             ProgressStatus @default(NOT_STARTED)
+  progressPercentage Int            @default(0)
+  watchedSeconds     Int            @default(0)
+  completedAt        DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  course       Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student      User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lesson       Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, lessonId])
+  @@index([organizationId])
+  @@index([courseId])
+}
+
+model Certificate {
+  id                String   @id @default(cuid())
+  organizationId    String
+  courseId          String
+  studentId         String
+  certificateNumber String   @unique
+  certificateUrl    String?
+  verificationCode  String   @unique
+  issuedAt          DateTime @default(now())
+  createdAt         DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  course       Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student      User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, studentId])
+  @@index([organizationId])
+}
+
+// ----------------------------------------------------------------------------
+// Planos SaaS e assinaturas
+// ----------------------------------------------------------------------------
+
+model Plan {
+  id              String       @id @default(cuid())
+  name            String
+  slug            String       @unique
+  description     String?
+  price           Decimal
+  currency        String       @default("BRL")
+  billingCycle    BillingCycle
+  maxCourses      Int?
+  maxStudents     Int?
+  maxAdmins       Int?
+  hasCustomDomain Boolean      @default(false)
+  hasCertificates Boolean      @default(true)
+  hasAnalytics    Boolean      @default(false)
+  hasAiFeatures   Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                    String             @id @default(cuid())
+  organizationId        String             @unique
+  planId                String
+  status                SubscriptionStatus @default(TRIALING)
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean            @default(false)
+  gatewayProvider       String?
+  gatewaySubscriptionId String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan         Plan         @relation(fields: [planId], references: [id])
+
+  @@index([planId])
+}
+
+// ----------------------------------------------------------------------------
+// Auditoria e tokens
+// ----------------------------------------------------------------------------
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String?
+  userId         String?
+  action         String
+  entityType     String?
+  entityId       String?
+  metadata       Json?
+  ipAddress      String?
+  createdAt      DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ----------------------------------------------------------------------------
+// Automações: webhooks de saída e notificações (Fase 5)
+// ----------------------------------------------------------------------------
+
+// Endpoint configurado pela escola para receber eventos (ex.: n8n, Zapier, custom).
+model Webhook {
+  id             String   @id @default(cuid())
+  organizationId String
+  url            String
+  secret         String // usado para assinar o payload (HMAC-SHA256)
+  events         String[] // tipos de evento inscritos (ex.: "enrollment.created")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deliveries   WebhookDelivery[]
+
+  @@index([organizationId])
+}
+
+model WebhookDelivery {
+  id           String        @id @default(cuid())
+  webhookId    String
+  event        String
+  payload      Json
+  status       DeliveryStatus @default(PENDING)
+  statusCode   Int?
+  attempts     Int           @default(0)
+  lastError    String?
+  createdAt    DateTime      @default(now())
+  deliveredAt  DateTime?
+
+  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId])
+  @@index([status])
+}
+
+// Registro de notificações enviadas (e-mail / WhatsApp).
+model NotificationLog {
+  id             String             @id @default(cuid())
+  organizationId String
+  userId         String?
+  channel        NotificationChannel
+  template       String // ex.: "enrollment_access", "lesson_reminder"
+  destination    String // e-mail ou telefone (mascarado em logs/erros)
+  status         DeliveryStatus     @default(PENDING)
+  error          String?
+  createdAt      DateTime           @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([userId])
+}
+
+// ----------------------------------------------------------------------------
+// B2B / Enterprise: empresas clientes, gestores e turmas corporativas (Fase 6)
+// ----------------------------------------------------------------------------
+
+// Empresa cliente DENTRO de uma escola (organização). Permite a uma escola
+// vender/gerir treinamentos para empresas, com gestores e turmas próprias.
+model Company {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  cnpj           String?
+  contactEmail   String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      CompanyMember[]
+  cohorts      Cohort[]
+
+  @@index([organizationId])
+}
+
+// Gestor de uma empresa (usuário que acompanha as turmas/relatórios da empresa).
+model CompanyMember {
+  id        String   @id @default(cuid())
+  companyId String
+  userId    String
+  role      CompanyRole @default(MANAGER)
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@index([userId])
+}
+
+// Turma corporativa: vincula uma empresa a um curso, com um grupo de alunos.
+model Cohort {
+  id             String       @id @default(cuid())
+  organizationId String
+  companyId      String
+  courseId       String
+  name           String
+  startsAt       DateTime?
+  endsAt         DateTime?
+  status         CohortStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  course       Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  members      CohortMember[]
+
+  @@index([organizationId])
+  @@index([companyId])
+  @@index([courseId])
+}
+
+model CohortMember {
+  id        String   @id @default(cuid())
+  cohortId  String
+  studentId String
+  createdAt DateTime @default(now())
+
+  cohort  Cohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([cohortId, studentId])
+  @@index([studentId])
+}
+
+// ----------------------------------------------------------------------------
+// Comunidade: feed, posts, comentários e curtidas (Fase 3)
+// ----------------------------------------------------------------------------
+
+// Post do feed da escola. Opcionalmente vinculado a um curso (feed do curso).
+model Post {
+  id             String   @id @default(cuid())
+  organizationId String
+  authorId       String
+  courseId       String? // null = feed geral da escola
+  content        String
+  isPinned       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author       User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  course       Course?      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  comments     Comment[]
+  likes        PostLike[]
+
+  @@index([organizationId])
+  @@index([courseId])
+}
+
+// Comentário polimórfico: pertence a um Post OU a uma Lesson (exatamente um).
+model Comment {
+  id             String   @id @default(cuid())
+  organizationId String
+  authorId       String
+  postId         String?
+  lessonId       String?
+  content        String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author       User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  post         Post?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  lesson       Lesson?      @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([postId])
+  @@index([lessonId])
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([userId])
+}
+
+// ----------------------------------------------------------------------------
+// Vendas e Checkout: cupons e pedidos (Fase 2)
+// ----------------------------------------------------------------------------
+
+// Cupom de desconto da escola (percentual ou valor fixo).
+model Coupon {
+  id             String       @id @default(cuid())
+  organizationId String
+  code           String
+  discountType   DiscountType
+  discountValue  Decimal // percentual (0-100) ou valor fixo na moeda
+  maxRedemptions Int? // null = ilimitado
+  redemptions    Int          @default(0)
+  expiresAt      DateTime?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orders       Order[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+}
+
+// Pedido de compra de um curso. A liberação de acesso (matrícula) ocorre quando
+// o pagamento é confirmado (status PAID) — via webhook do gateway ou retorno.
+model Order {
+  id             String      @id @default(cuid())
+  organizationId String
+  courseId       String
+  buyerId        String
+  couponId       String?
+  amount         Decimal // valor final cobrado (após desconto)
+  currency       String      @default("BRL")
+  status         OrderStatus @default(PENDING)
+  paymentMethod  String? // PIX, CARD, BOLETO
+  gatewayProvider String?
+  gatewayRef     String? // id da transação no gateway
+  paidAt         DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  course       Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  buyer        User         @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  coupon       Coupon?      @relation(fields: [couponId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([courseId])
+  @@index([buyerId])
+  @@index([gatewayRef])
+}
+
+// ----------------------------------------------------------------------------
+// Enums
+// ----------------------------------------------------------------------------
+
+enum UserRole {
+  SUPER_ADMIN
+  ORG_OWNER
+  ORG_ADMIN
+  INSTRUCTOR
+  SUPPORT
+  STUDENT
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  TRIAL
+  SUSPENDED
+  CANCELED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+  INCOMPLETE
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CourseVisibility {
+  PUBLIC
+  PRIVATE
+  UNLISTED
+}
+
+enum CourseLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  ALL_LEVELS
+}
+
+enum LessonContentType {
+  VIDEO
+  TEXT
+  PDF
+  AUDIO
+  LIVE
+  EMBED
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  EXPIRED
+  CANCELED
+  COMPLETED
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum NotificationChannel {
+  EMAIL
+  WHATSAPP
+}
+
+enum CompanyRole {
+  MANAGER
+  VIEWER
+}
+
+enum CohortStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum DiscountType {
+  PERCENT
+  FIXED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  CANCELED
+}
