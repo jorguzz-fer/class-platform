@@ -83,6 +83,7 @@ model Organization {
   subscription Subscription?
   auditLogs    AuditLog[]
   webhooks     Webhook[]
+  apiKeys      ApiKey[]
   notifications NotificationLog[]
   companies    Company[]
   cohorts      Cohort[]
@@ -134,6 +135,9 @@ model Course {
   instructorId    String?
   title           String
   slug            String
+  // Referência ao recurso de origem num sistema externo (ex.: id do curso no
+  // Aulai). Chave de idempotência do import via API: upsert por (org, sourceRef).
+  sourceRef       String?
   subtitle        String?
   description     String?
   thumbnailUrl    String?
@@ -161,6 +165,7 @@ model Course {
   orders       Order[]
 
   @@unique([organizationId, slug])
+  @@unique([organizationId, sourceRef])
   @@index([organizationId])
   @@index([instructorId])
 }
@@ -171,6 +176,8 @@ model Module {
   courseId       String
   title          String
   description    String?
+  // Id do módulo no sistema de origem; usado no import idempotente via API.
+  sourceRef      String?
   orderIndex     Int
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -179,6 +186,7 @@ model Module {
   course       Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
   lessons      Lesson[]
 
+  @@unique([courseId, sourceRef])
   @@index([organizationId])
   @@index([courseId])
 }
@@ -190,6 +198,8 @@ model Lesson {
   moduleId        String
   title           String
   description     String?
+  // Id da aula no sistema de origem; usado no import idempotente via API.
+  sourceRef       String?
   contentType     LessonContentType @default(VIDEO)
   videoProvider   String?
   videoUrl        String?
@@ -209,6 +219,7 @@ model Lesson {
   progress     LessonProgress[]
   comments     Comment[]
 
+  @@unique([moduleId, sourceRef])
   @@index([organizationId])
   @@index([courseId])
   @@index([moduleId])
@@ -382,6 +393,24 @@ model PasswordResetToken {
 // ----------------------------------------------------------------------------
 
 // Endpoint configurado pela escola para receber eventos (ex.: n8n, Zapier, custom).
+// Chave de API por organização para integrações máquina-a-máquina (ex.: o app
+// Aulai publicando cursos). Guardamos apenas o hash SHA-256 do token — o valor
+// em claro é exibido uma única vez na emissão e nunca persistido.
+model ApiKey {
+  id             String    @id @default(cuid())
+  organizationId String
+  name           String // rótulo para identificar o uso (ex.: "Aulai")
+  prefix         String // primeiros caracteres do token, p/ identificação (não é segredo)
+  keyHash        String    @unique // SHA-256 do token completo
+  lastUsedAt     DateTime?
+  revokedAt      DateTime? // se preenchido, a chave está revogada
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
 model Webhook {
   id             String   @id @default(cuid())
   organizationId String
