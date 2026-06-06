@@ -121,6 +121,57 @@ export type LessonInput = z.infer<typeof lessonSchema>;
 export type ReorderInput = z.infer<typeof reorderSchema>;
 
 // ---------------------------------------------------------------------------
+// REST API pública: import bulk de curso (integração Aulai)
+// ---------------------------------------------------------------------------
+// Payload aninhado (curso → módulos → aulas) criado/atualizado num único POST.
+// `sourceRef` é o id do recurso no sistema de origem (Aulai): no curso é
+// obrigatório (chave de idempotência); em módulos/aulas é opcional, mas quando
+// fornecido permite reconciliar a árvore preservando o progresso dos alunos.
+
+const apiSourceRef = z.string().trim().min(1).max(200);
+
+export const apiLessonSchema = z.object({
+  sourceRef: apiSourceRef.optional(),
+  title: z.string().trim().min(2, "Título muito curto").max(160),
+  description: z.string().trim().max(2000).optional(),
+  contentType: z.enum(lessonContentTypes).default("VIDEO"),
+  // Mesma convenção da UI: escolhe o provider e passa a URL/ID; o registry
+  // (src/lib/video) normaliza em videoId/videoUrl ao salvar.
+  videoProvider: z.string().trim().max(40).optional(),
+  videoSource: z.string().trim().max(500).optional(),
+  textContent: z.string().trim().max(50000).optional(),
+  durationMinutes: z.coerce.number().int().min(0).max(100000).optional(),
+  isPreview: z.coerce.boolean().default(false),
+  isRequired: z.coerce.boolean().default(true),
+});
+
+export const apiModuleSchema = z.object({
+  sourceRef: apiSourceRef.optional(),
+  title: z.string().trim().min(2, "Título muito curto").max(160),
+  description: z.string().trim().max(2000).optional(),
+  lessons: z.array(apiLessonSchema).max(500).default([]),
+});
+
+export const apiCourseImportSchema = z.object({
+  sourceRef: apiSourceRef,
+  title: z.string().trim().min(3, "Título muito curto").max(160),
+  subtitle: z.string().trim().max(200).optional(),
+  description: z.string().trim().max(5000).optional(),
+  level: z.enum(courseLevels).default("ALL_LEVELS"),
+  visibility: z.enum(courseVisibilities).default("PRIVATE"),
+  category: z.string().trim().max(80).optional(),
+  price: z.coerce.number().min(0).max(1_000_000).optional(),
+  // Por padrão o import já publica (este é o "gate de publicação" do Aulai).
+  // Só publica de fato se houver ao menos um módulo com uma aula (SPEC §11.2).
+  publish: z.coerce.boolean().default(true),
+  modules: z.array(apiModuleSchema).max(200).default([]),
+});
+
+export type ApiLessonInput = z.infer<typeof apiLessonSchema>;
+export type ApiModuleInput = z.infer<typeof apiModuleSchema>;
+export type ApiCourseImportInput = z.infer<typeof apiCourseImportSchema>;
+
+// ---------------------------------------------------------------------------
 // Alunos e Matrículas (Etapa 6)
 // ---------------------------------------------------------------------------
 
