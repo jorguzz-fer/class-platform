@@ -5,10 +5,12 @@ import { ArrowLeft } from "lucide-react";
 import { requireOrg } from "@/lib/tenant";
 import { can } from "@/lib/permissions";
 import { getCourse } from "@/services/course.service";
+import { getSchool } from "@/services/school.service";
 import { updateCourseAction } from "@/lib/actions/course-actions";
 import { CourseForm } from "@/components/forms/course-form";
 import { CourseStatusBadge } from "@/components/dashboard/course-status-badge";
 import { CourseActionsBar } from "@/components/dashboard/course-actions-bar";
+import { ShareCourseLink } from "@/components/dashboard/share-course-link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -27,6 +29,17 @@ export default async function CourseDetailPage({
   const ctx = await requireOrg();
   const course = await getCourse(ctx.organizationId, courseId);
   if (!course) notFound();
+
+  const school = await getSchool(ctx.organizationId);
+
+  // O curso é compartilhável por link quando está publicado e visível por link.
+  const shareable =
+    course.status === "PUBLISHED" &&
+    (course.visibility === "PUBLIC" || course.visibility === "UNLISTED");
+  const missingToShare: string[] = [];
+  if (course.status !== "PUBLISHED") missingToShare.push("publique o curso");
+  if (course.visibility === "PRIVATE")
+    missingToShare.push('defina a visibilidade como "Público" ou "Não listado"');
 
   // updateCourseAction precisa do courseId; bind via closure no server.
   const boundUpdate = updateCourseAction.bind(null, course.id);
@@ -78,6 +91,20 @@ export default async function CourseDetailPage({
                 Para publicar, adicione ao menos um módulo e uma aula.
               </p>
             )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Compartilhar com alunos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ShareCourseLink
+            subdomain={school?.subdomain ?? null}
+            courseSlug={course.slug}
+            shareable={shareable}
+            missing={missingToShare}
+          />
         </CardContent>
       </Card>
 
