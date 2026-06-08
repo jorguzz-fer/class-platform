@@ -6,6 +6,7 @@ const config: Record<
   EnrollmentStatus,
   { label: string; variant: "default" | "secondary" | "outline" | "destructive" }
 > = {
+  PENDING: { label: "Pendente", variant: "outline" },
   ACTIVE: { label: "Ativa", variant: "default" },
   COMPLETED: { label: "Concluída", variant: "secondary" },
   EXPIRED: { label: "Expirada", variant: "outline" },

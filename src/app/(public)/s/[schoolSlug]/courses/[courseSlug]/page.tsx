@@ -8,6 +8,7 @@ import {
 } from "@/services/public-school.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { SelfEnrollForm } from "@/components/student/self-enroll-form";
 
 function price(p: unknown, currency: string) {
   const v = Number(p ?? 0);
@@ -95,14 +96,14 @@ export default async function PublicCoursePage({
       </div>
 
       <div className="mt-8 flex flex-col items-center gap-3 rounded-lg border bg-muted/30 p-6 text-center">
-        <p className="text-lg font-semibold">{price(course.price, course.currency)}</p>
-        <Link
-          href={`/checkout/${courseSlug}`}
-          className="inline-flex h-10 items-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          {Number(course.price ?? 0) === 0 ? "Matricular-se" : "Comprar curso"}
-        </Link>
-        <p className="text-xs text-muted-foreground">É necessário entrar para concluir a compra.</p>
+        <p className="text-lg font-semibold">Solicitar inscrição</p>
+        <p className="text-xs text-muted-foreground">
+          Crie sua conta para pedir acesso. A escola precisa aprovar antes de
+          você entrar no curso.
+        </p>
+        <div className="mt-2 w-full max-w-xs">
+          <SelfEnrollForm schoolSlug={schoolSlug} courseSlug={courseSlug} />
+        </div>
       </div>
     </div>
   );

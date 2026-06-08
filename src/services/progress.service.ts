@@ -60,6 +60,18 @@ export async function listStudentCourses(studentId: string) {
   return results;
 }
 
+/** Solicitações de inscrição do aluno ainda aguardando aprovação da escola. */
+export function listPendingStudentCourses(studentId: string) {
+  return db.enrollment.findMany({
+    where: { studentId, status: "PENDING" },
+    orderBy: { enrolledAt: "desc" },
+    select: {
+      id: true,
+      course: { select: { title: true, subtitle: true } },
+    },
+  });
+}
+
 /** Verifica se o aluno tem acesso ao curso (matrícula ativa/concluída). */
 export async function getStudentEnrollment(studentId: string, courseSlug: string) {
   return db.enrollment.findFirst({

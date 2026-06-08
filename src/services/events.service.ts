@@ -50,6 +50,39 @@ export async function onEnrollmentCreated(
   }
 }
 
+/**
+ * Aluno solicitou inscrição por link: avisa o(s) dono(s) da escola para
+ * aprovar. Best-effort.
+ */
+export async function onEnrollmentRequested(
+  organizationId: string,
+  studentName: string,
+  courseTitle: string,
+): Promise<void> {
+  try {
+    const owners = await db.organizationMember.findMany({
+      where: { organizationId, role: { in: ["ORG_OWNER", "ORG_ADMIN"] } },
+      select: { userId: true, user: { select: { email: true } } },
+    });
+    await Promise.all(
+      owners.map((owner) =>
+        notify({
+          organizationId,
+          userId: owner.userId,
+          template: "enrollment_requested",
+          subject: `Nova solicitação de inscrição: ${courseTitle}`,
+          text:
+            `${studentName} solicitou inscrição no curso "${courseTitle}".\n` +
+            `Aprove ou recuse em: ${APP_URL}/dashboard/enrollments\n`,
+          email: owner.user.email,
+        }),
+      ),
+    );
+  } catch {
+    // best-effort
+  }
+}
+
 /** Curso publicado: dispara webhook. */
 export async function onCoursePublished(
   organizationId: string,

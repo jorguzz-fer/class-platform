@@ -706,6 +706,7 @@ enum LessonContentType {
 }
 
 enum EnrollmentStatus {
+  PENDING
   ACTIVE
   EXPIRED
   CANCELED
