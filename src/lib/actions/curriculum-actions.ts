@@ -98,13 +98,17 @@ export async function reorderModulesAction(
 // ---- Aulas ---------------------------------------------------------------
 
 function parseLesson(formData: FormData) {
+  // FormData.get() devolve null quando o campo não existe no form (ex.: o form
+  // de aula não tem "description"; videoProvider/Source somem quando o tipo não
+  // é vídeo). Os schemas opcionais aceitam undefined/"" — não null. Converter
+  // null→undefined evita uma falha de validação num campo invisível.
   return lessonSchema.safeParse({
     title: formData.get("title"),
-    description: formData.get("description"),
+    description: formData.get("description") ?? undefined,
     contentType: formData.get("contentType") ?? undefined,
-    videoProvider: formData.get("videoProvider"),
-    videoSource: formData.get("videoSource"),
-    textContent: formData.get("textContent"),
+    videoProvider: formData.get("videoProvider") ?? undefined,
+    videoSource: formData.get("videoSource") ?? undefined,
+    textContent: formData.get("textContent") ?? undefined,
     durationMinutes: formData.get("durationMinutes") || undefined,
     isPreview: formData.get("isPreview") === "on" || formData.get("isPreview") === "true",
     isRequired: formData.get("isRequired") === "on" || formData.get("isRequired") === "true",
