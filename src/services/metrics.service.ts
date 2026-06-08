@@ -66,3 +66,67 @@ export function getRecentCourses(organizationId: string, take = 5) {
     },
   });
 }
+
+/** Distribuição de matrículas por status (para os cartões de relatório). */
+export async function getEnrollmentBreakdown(organizationId: string) {
+  const grouped = await db.enrollment.groupBy({
+    by: ["status"],
+    where: { organizationId },
+    _count: { _all: true },
+  });
+  const count = (status: string) =>
+    grouped.find((g) => g.status === status)?._count._all ?? 0;
+
+  return {
+    pending: count("PENDING"),
+    active: count("ACTIVE"),
+    completed: count("COMPLETED"),
+    canceled: count("CANCELED"),
+    expired: count("EXPIRED"),
+  };
+}
+
+/**
+ * Desempenho por curso: conteúdo e matrículas por status, com taxa de
+ * conclusão. Faz 2 queries (cursos + groupBy) e cruza em memória, sem N+1.
+ */
+export async function getCourseReport(organizationId: string) {
+  const [courses, grouped] = await Promise.all([
+    db.course.findMany({
+      where: { organizationId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        _count: { select: { modules: true, lessons: true } },
+      },
+    }),
+    db.enrollment.groupBy({
+      by: ["courseId", "status"],
+      where: { organizationId },
+      _count: { _all: true },
+    }),
+  ]);
+
+  return courses.map((course) => {
+    const rows = grouped.filter((g) => g.courseId === course.id);
+    const by = (status: string) =>
+      rows.find((g) => g.status === status)?._count._all ?? 0;
+    const completed = by("COMPLETED");
+    const total = rows.reduce((sum, g) => sum + g._count._all, 0);
+
+    return {
+      id: course.id,
+      title: course.title,
+      status: course.status,
+      modules: course._count.modules,
+      lessons: course._count.lessons,
+      total,
+      active: by("ACTIVE"),
+      completed,
+      pending: by("PENDING"),
+      completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
+    };
+  });
+}
