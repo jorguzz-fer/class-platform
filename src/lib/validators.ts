@@ -190,9 +190,19 @@ export const createEnrollmentSchema = z.object({
   courseId: z.string().min(1, "Selecione um curso"),
 });
 
+// Auto-inscrição pública: o aluno cria a própria conta ao solicitar um curso.
+export const selfEnrollSchema = z.object({
+  schoolSlug: z.string().trim().min(1),
+  courseSlug: z.string().trim().min(1),
+  name: z.string().trim().min(2, "Informe seu nome").max(120),
+  email: z.string().trim().toLowerCase().email("E-mail inválido").max(160),
+  password: passwordSchema,
+});
+
 export type CreateStudentInput = z.infer<typeof createStudentSchema>;
 export type UpdateStudentInput = z.infer<typeof updateStudentSchema>;
 export type CreateEnrollmentInput = z.infer<typeof createEnrollmentSchema>;
+export type SelfEnrollInput = z.infer<typeof selfEnrollSchema>;
 
 // ---------------------------------------------------------------------------
 // Configurações da escola (MVP: branding, domínio, time)

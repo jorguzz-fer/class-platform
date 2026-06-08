@@ -21,6 +21,8 @@ import {
   enrollStudent,
   cancelEnrollment,
   deleteEnrollment,
+  approveEnrollment,
+  rejectEnrollment,
 } from "@/services/enrollment.service";
 
 export type ActionResult = { error?: string; fieldErrors?: Record<string, string[]> } | null;
@@ -147,6 +149,47 @@ export async function deleteEnrollmentAction(enrollmentId: string): Promise<Acti
 
   const ok = await deleteEnrollment(ctx.organizationId, enrollmentId);
   if (!ok) return { error: "Matrícula não encontrada." };
+
+  revalidatePath("/dashboard/enrollments");
+  return null;
+}
+
+export async function approveEnrollmentAction(enrollmentId: string): Promise<ActionResult> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "enrollment:manage");
+
+  const result = await approveEnrollment(ctx.organizationId, enrollmentId);
+  if (!result.ok) return { error: result.error };
+
+  await audit({
+    organizationId: ctx.organizationId,
+    userId: ctx.userId,
+    action: "enrollment.approve",
+    entityType: "Enrollment",
+    entityId: enrollmentId,
+  });
+
+  // Reaproveita o e-mail "acesso liberado" + webhook de matrícula.
+  await onEnrollmentCreated(ctx.organizationId, result.studentId, result.courseId);
+
+  revalidatePath("/dashboard/enrollments");
+  return null;
+}
+
+export async function rejectEnrollmentAction(enrollmentId: string): Promise<ActionResult> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "enrollment:manage");
+
+  const ok = await rejectEnrollment(ctx.organizationId, enrollmentId);
+  if (!ok) return { error: "Solicitação não encontrada." };
+
+  await audit({
+    organizationId: ctx.organizationId,
+    userId: ctx.userId,
+    action: "enrollment.reject",
+    entityType: "Enrollment",
+    entityId: enrollmentId,
+  });
 
   revalidatePath("/dashboard/enrollments");
   return null;

@@ -71,8 +71,10 @@ ausente/inválida/revogada ou escola suspensa), `500` (falha interna).
 Sem UI por enquanto — via script no container de produção (Coolify → Terminal):
 
 ```bash
-node prisma/issue-api-key.mjs                              # lista as escolas (descobrir o slug)
-node prisma/issue-api-key.mjs --school <slug> --name "Aulai"   # emite (token aparece 1x)
+node prisma/issue-api-key.mjs                                 # lista as escolas (descobrir o slug)
+node prisma/issue-api-key.mjs --school <slug> --name "Aulai"  # emite (token aparece 1x)
+node prisma/issue-api-key.mjs --list [--school <slug>]        # lista chaves (ativas/revogadas)
+node prisma/issue-api-key.mjs --revoke <id-da-chave>          # revoga (soft, idempotente)
 ```
 
 Copie o token (`clsk_...`) e cole **cifrado** no `Client` correspondente do Aulai.
