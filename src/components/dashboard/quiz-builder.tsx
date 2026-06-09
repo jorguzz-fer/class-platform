@@ -11,6 +11,7 @@ import {
   Pencil,
   Check,
   X,
+  Sparkles,
 } from "lucide-react";
 import type { QuestionType } from "@prisma/client";
 
@@ -29,6 +30,7 @@ import {
   updateQuestionAction,
   deleteQuestionAction,
   reorderQuestionsAction,
+  generateQuestionsAction,
   type ActionResult,
 } from "@/lib/actions/quiz-actions";
 import type { QuizQuestionInput } from "@/lib/validators";
@@ -65,10 +67,12 @@ export function QuizBuilder({
   courseId,
   moduleId,
   quiz,
+  aiEnabled,
 }: {
   courseId: string;
   moduleId: string;
   quiz: QuizView | null;
+  aiEnabled: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -221,6 +225,8 @@ export function QuizBuilder({
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Questões ({quiz.questions.length})
         </h2>
+
+        {aiEnabled && <AiGenerator courseId={courseId} moduleId={moduleId} quizId={quiz.id} />}
 
         {quiz.questions.map((q, idx) => (
           <Card key={q.id}>
@@ -647,5 +653,87 @@ function QuestionForm({
         </Button>
       </div>
     </div>
+  );
+}
+
+// ---- Geração por IA (Fase B) ---------------------------------------------
+
+function AiGenerator({
+  courseId,
+  moduleId,
+  quizId,
+}: {
+  courseId: string;
+  moduleId: string;
+  quizId: string;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+
+  function generate() {
+    startTransition(async () => {
+      const res = await generateQuestionsAction(courseId, moduleId, quizId, text);
+      if (res?.error) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success(`${res?.count ?? 0} questão(ões) gerada(s). Revise abaixo.`);
+      setText("");
+      setOpen(false);
+      router.refresh();
+    });
+  }
+
+  if (!open) {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-fit gap-1"
+        onClick={() => setOpen(true)}
+      >
+        <Sparkles className="h-4 w-4" />
+        Gerar com IA
+      </Button>
+    );
+  }
+
+  return (
+    <Card className="border-dashed">
+      <CardContent className="flex flex-col gap-3 p-4">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <p className="text-sm font-medium">Gerar questões com IA</p>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Cole o conteúdo ou um banco de questões (com gabarito). A IA monta as
+          questões como rascunho — você revisa e ajusta antes de publicar.
+        </p>
+        <Textarea
+          rows={6}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={
+            "Ex.: Por que a NR-01 é importante?\nA) ...\nB) ...\nGabarito: B"
+          }
+        />
+        <div className="flex gap-2">
+          <Button type="button" size="sm" disabled={pending} onClick={generate}>
+            {pending ? "Gerando..." : "Gerar questões"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={pending}
+            onClick={() => setOpen(false)}
+          >
+            Cancelar
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

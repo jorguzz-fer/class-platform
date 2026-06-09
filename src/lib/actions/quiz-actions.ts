@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireOrg } from "@/lib/tenant";
 import { assertPermission } from "@/lib/permissions";
 import { getOrgPlan } from "@/services/school.service";
+import { getAIProvider } from "@/lib/ai";
 import {
   quizSettingsSchema,
   quizQuestionSchema,
@@ -20,6 +21,7 @@ import {
   setQuizPublished,
   deleteQuiz,
   addQuestion,
+  addQuestionsBulk,
   updateQuestion,
   deleteQuestion,
   reorderQuestions,
@@ -201,6 +203,60 @@ export async function reorderQuestionsAction(
   await reorderQuestions(ctx.organizationId, quizId, orderedIds);
   revalidateQuiz(courseId, moduleId);
   return null;
+}
+
+// ---- Geração por IA (Fase B) ---------------------------------------------
+
+/**
+ * Gera questões a partir de texto colado e as insere como rascunho na prova.
+ * A própria lista de questões serve de revisão — o dono ajusta/remove depois.
+ * Requer o recurso de IA habilitado no plano (hasAiFeatures).
+ */
+export async function generateQuestionsAction(
+  courseId: string,
+  moduleId: string,
+  quizId: string,
+  text: string,
+): Promise<ActionResult & { count?: number }> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "course:edit");
+
+  const plan = await getOrgPlan(ctx.organizationId);
+  if (!plan?.hasAiFeatures)
+    return { error: "Recurso de IA não disponível no seu plano." };
+
+  const clean = text.trim();
+  if (clean.length < 20)
+    return { error: "Cole um texto maior (mín. 20 caracteres)." };
+  if (clean.length > 50000)
+    return { error: "Texto muito longo (máx. 50.000 caracteres)." };
+
+  let generated;
+  try {
+    generated = await getAIProvider().generateQuestionsFromText({ text: clean });
+  } catch {
+    return { error: "Falha ao gerar as questões. Tente novamente." };
+  }
+
+  // Valida cada questão; mantém apenas as válidas (a IA pode escorregar).
+  const valid: QuizQuestionInput[] = [];
+  for (const q of generated.questions) {
+    const parsed = quizQuestionSchema.safeParse({
+      type: q.type,
+      statement: q.statement,
+      points: 1,
+      options: q.options,
+    });
+    if (parsed.success) valid.push(parsed.data);
+  }
+  if (valid.length === 0)
+    return { error: "Não foi possível extrair questões válidas do texto." };
+
+  const created = await addQuestionsBulk(ctx.organizationId, quizId, valid);
+  if (created == null) return { error: "Prova não encontrada." };
+
+  revalidateQuiz(courseId, moduleId);
+  return { count: created };
 }
 
 // ---- Aluno: enviar prova --------------------------------------------------

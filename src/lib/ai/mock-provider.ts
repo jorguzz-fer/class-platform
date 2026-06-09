@@ -3,6 +3,9 @@ import type {
   CourseOutline,
   CourseOutlineInput,
   GeneratedQuiz,
+  GeneratedQuestionSet,
+  GeneratedQuestionDraft,
+  QuestionsFromTextInput,
   LessonSummaryInput,
   TutorContext,
   TutorMessage,
@@ -73,6 +76,45 @@ export class MockAIProvider implements AIProvider {
     };
   }
 
+  async generateQuestionsFromText(
+    input: QuestionsFromTextInput,
+  ): Promise<GeneratedQuestionSet> {
+    // Parser heurístico do formato "enunciado + A)/B)/C)/D) + Gabarito: X".
+    // Permite usar o recurso sem API key (e casa com o modelo de .docx do dono).
+    const parsed = parseFormattedQuestions(input.text);
+    if (parsed.length > 0) return { questions: parsed };
+
+    // Sem questões reconhecíveis: devolve um rascunho genérico para edição.
+    const snippet = input.text.trim().slice(0, 80) || "o conteúdo informado";
+    return {
+      questions: [
+        {
+          type: "SINGLE_CHOICE",
+          statement: `(rascunho) Qual a ideia central de: "${snippet}..."?`,
+          options: [
+            { text: "A ideia principal do texto", isCorrect: true },
+            { text: "Um detalhe secundário", isCorrect: false },
+            { text: "Algo não mencionado", isCorrect: false },
+            { text: "Nenhuma das anteriores", isCorrect: false },
+          ],
+        },
+        {
+          type: "TRUE_FALSE",
+          statement: "(rascunho) O texto trata do tema proposto.",
+          options: [
+            { text: "Verdadeiro", isCorrect: true },
+            { text: "Falso", isCorrect: false },
+          ],
+        },
+        {
+          type: "OPEN",
+          statement: "(rascunho) Explique com suas palavras o tema do texto.",
+          options: [],
+        },
+      ],
+    };
+  }
+
   async summarizeLesson(input: LessonSummaryInput): Promise<string> {
     const snippet = input.content.trim().slice(0, 200);
     return (
@@ -102,4 +144,71 @@ export class MockAIProvider implements AIProvider {
       yield word + " ";
     }
   }
+}
+
+/**
+ * Parser heurístico do formato comum de banco de questões:
+ *   Enunciado (opcionalmente "1." na frente)
+ *   A) alternativa
+ *   B) alternativa
+ *   ...
+ *   Gabarito: B
+ * Linhas de cabeçalho (sem alternativas) são ignoradas. Quando não há gabarito
+ * explícito, marca a primeira alternativa como correta (o dono ajusta depois).
+ */
+function parseFormattedQuestions(text: string): GeneratedQuestionDraft[] {
+  const lines = text.split(/\r?\n/).map((l) => l.trim());
+  const optionRe = /^([A-E])\)\s*(.+)$/i;
+  const gabaritoRe = /gabarito\s*[:\-]?\s*\*{0,2}\s*([A-E])/i;
+  const questions: GeneratedQuestionDraft[] = [];
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!line || optionRe.test(line) || gabaritoRe.test(line)) {
+      i++;
+      continue;
+    }
+
+    // Alternativas logo abaixo (pulando linhas em branco).
+    let j = i + 1;
+    while (j < lines.length && !lines[j]) j++;
+    const opts: { letter: string; text: string }[] = [];
+    while (j < lines.length) {
+      const m = lines[j].match(optionRe);
+      if (!m) break;
+      opts.push({ letter: m[1].toUpperCase(), text: m[2].trim() });
+      j++;
+    }
+
+    if (opts.length < 2) {
+      // Não é uma questão (provável cabeçalho) — segue adiante.
+      i++;
+      continue;
+    }
+
+    // Procura o gabarito nas próximas linhas próximas.
+    let correct: string | null = null;
+    let k = j;
+    while (k < lines.length && k < j + 3) {
+      const g = lines[k].match(gabaritoRe);
+      if (g) {
+        correct = g[1].toUpperCase();
+        break;
+      }
+      k++;
+    }
+
+    const statement = line.replace(/^\d+[.)]\s*/, "").trim();
+    const options = opts.map((o) => ({
+      text: o.text,
+      isCorrect: correct ? o.letter === correct : false,
+    }));
+    if (!correct) options[0].isCorrect = true;
+
+    questions.push({ type: "SINGLE_CHOICE", statement, options });
+    i = correct ? k + 1 : j;
+  }
+
+  return questions;
 }

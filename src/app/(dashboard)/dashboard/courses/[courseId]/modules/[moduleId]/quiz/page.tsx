@@ -6,6 +6,7 @@ import { requireOrg } from "@/lib/tenant";
 import { can } from "@/lib/permissions";
 import { getModule } from "@/services/module.service";
 import { getQuizByModule } from "@/services/quiz.service";
+import { getOrgPlan } from "@/services/school.service";
 import { QuizBuilder } from "@/components/dashboard/quiz-builder";
 
 export default async function ModuleQuizPage({
@@ -21,6 +22,8 @@ export default async function ModuleQuizPage({
   if (!mod || mod.courseId !== courseId) notFound();
 
   const quiz = await getQuizByModule(ctx.organizationId, moduleId);
+  const plan = await getOrgPlan(ctx.organizationId);
+  const aiEnabled = plan?.hasAiFeatures ?? false;
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,6 +47,7 @@ export default async function ModuleQuizPage({
       <QuizBuilder
         courseId={courseId}
         moduleId={moduleId}
+        aiEnabled={aiEnabled}
         quiz={
           quiz
             ? {

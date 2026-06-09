@@ -36,6 +36,34 @@ export interface GeneratedQuiz {
   questions: QuizQuestion[];
 }
 
+// Geração de questões a partir de texto colado (Fase B). Formato alinhado ao
+// builder de provas: suporta os 4 tipos e marca a(s) opção(ões) correta(s).
+export type GeneratedQuestionType =
+  | "SINGLE_CHOICE"
+  | "TRUE_FALSE"
+  | "MULTI_SELECT"
+  | "OPEN";
+
+export interface GeneratedQuestionOption {
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface GeneratedQuestionDraft {
+  type: GeneratedQuestionType;
+  statement: string;
+  options: GeneratedQuestionOption[]; // vazio para OPEN
+}
+
+export interface GeneratedQuestionSet {
+  questions: GeneratedQuestionDraft[];
+}
+
+export interface QuestionsFromTextInput {
+  /** Texto colado: pode conter questões prontas (com gabarito) ou conteúdo. */
+  text: string;
+}
+
 export interface LessonSummaryInput {
   title: string;
   content: string;
@@ -62,6 +90,10 @@ export interface AIProvider {
 
   generateCourseOutline(input: CourseOutlineInput): Promise<CourseOutline>;
   generateQuiz(input: LessonSummaryInput): Promise<GeneratedQuiz>;
+  /** Monta questões de prova a partir de texto colado (Fase B). */
+  generateQuestionsFromText(
+    input: QuestionsFromTextInput,
+  ): Promise<GeneratedQuestionSet>;
   summarizeLesson(input: LessonSummaryInput): Promise<string>;
   /** Resposta do tutor em streaming (async iterable de chunks de texto). */
   tutorReply(
