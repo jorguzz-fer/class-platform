@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import type { AdminUpdateUserInput } from "@/lib/validators";
 
 /**
  * Serviço do painel da plataforma (SUPER_ADMIN, SPEC §9.2).
@@ -55,6 +56,39 @@ export function listAllUsers(take = 100) {
       createdAt: true,
     },
   });
+}
+
+export function getUserForAdmin(userId: string) {
+  return db.user.findUnique({
+    where: { id: userId },
+    select: { id: true, name: true, email: true, role: true, isActive: true },
+  });
+}
+
+export type AdminUpdateUserResult = { ok: true } | { ok: false; error: string };
+
+/** Edita um usuário pelo painel da plataforma. Garante e-mail único. */
+export async function updateUserAsAdmin(
+  userId: string,
+  input: AdminUpdateUserInput,
+): Promise<AdminUpdateUserResult> {
+  const clash = await db.user.findFirst({
+    where: { email: input.email, id: { not: userId } },
+    select: { id: true },
+  });
+  if (clash) return { ok: false, error: "Já existe outro usuário com este e-mail." };
+
+  const result = await db.user.updateMany({
+    where: { id: userId },
+    data: {
+      name: input.name,
+      email: input.email,
+      role: input.role,
+      isActive: input.isActive,
+    },
+  });
+  if (result.count === 0) return { ok: false, error: "Usuário não encontrado." };
+  return { ok: true };
 }
 
 export function listAuditLogs(take = 100) {

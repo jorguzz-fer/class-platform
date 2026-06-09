@@ -206,6 +206,22 @@ export const selfEnrollSchema = z.object({
   password: passwordSchema,
 });
 
+// Edição de usuário pelo painel da plataforma (SUPER_ADMIN).
+export const adminUpdateUserSchema = z.object({
+  name: z.string().trim().min(2, "Informe o nome").max(120),
+  email: z.string().trim().toLowerCase().email("E-mail inválido").max(160),
+  role: z.enum([
+    "SUPER_ADMIN",
+    "ORG_OWNER",
+    "ORG_ADMIN",
+    "INSTRUCTOR",
+    "SUPPORT",
+    "STUDENT",
+  ]),
+  isActive: z.coerce.boolean().default(true),
+});
+export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;
+
 export type CreateStudentInput = z.infer<typeof createStudentSchema>;
 export type UpdateStudentInput = z.infer<typeof updateStudentSchema>;
 export type CreateEnrollmentInput = z.infer<typeof createEnrollmentSchema>;
