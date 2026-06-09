@@ -3,14 +3,20 @@ import { Plus, BookOpen } from "lucide-react";
 
 import { requireOrg } from "@/lib/tenant";
 import { listCourses } from "@/services/course.service";
+import { getSchool } from "@/services/school.service";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CourseStatusBadge } from "@/components/dashboard/course-status-badge";
+import { ShareCourseLinkCompact } from "@/components/dashboard/share-course-link-compact";
 import { cn } from "@/lib/utils";
 
 export default async function CoursesPage() {
   const { organizationId } = await requireOrg();
-  const courses = await listCourses(organizationId);
+  const [courses, school] = await Promise.all([
+    listCourses(organizationId),
+    getSchool(organizationId),
+  ]);
+  const subdomain = school?.subdomain ?? null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -58,6 +64,7 @@ export default async function CoursesPage() {
                   <th className="px-4 py-3 font-medium">Módulos</th>
                   <th className="px-4 py-3 font-medium">Aulas</th>
                   <th className="px-4 py-3 font-medium">Matrículas</th>
+                  <th className="px-4 py-3 font-medium">Link de inscrição</th>
                 </tr>
               </thead>
               <tbody>
@@ -80,6 +87,17 @@ export default async function CoursesPage() {
                     <td className="px-4 py-3">{course._count.modules}</td>
                     <td className="px-4 py-3">{course._count.lessons}</td>
                     <td className="px-4 py-3">{course._count.enrollments}</td>
+                    <td className="px-4 py-3">
+                      <ShareCourseLinkCompact
+                        subdomain={subdomain}
+                        courseSlug={course.slug}
+                        shareable={
+                          course.status === "PUBLISHED" &&
+                          (course.visibility === "PUBLIC" ||
+                            course.visibility === "UNLISTED")
+                        }
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
