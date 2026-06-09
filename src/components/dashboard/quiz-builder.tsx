@@ -12,6 +12,7 @@ import {
   Check,
   X,
   Sparkles,
+  Upload,
 } from "lucide-react";
 import type { QuestionType } from "@prisma/client";
 
@@ -31,6 +32,7 @@ import {
   deleteQuestionAction,
   reorderQuestionsAction,
   generateQuestionsAction,
+  generateFromFileAction,
   type ActionResult,
 } from "@/lib/actions/quiz-actions";
 import type { QuizQuestionInput } from "@/lib/validators";
@@ -671,18 +673,32 @@ function AiGenerator({
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+
+  function onResult(res: (ActionResult & { count?: number }) | null) {
+    if (res?.error) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success(`${res?.count ?? 0} questão(ões) gerada(s). Revise abaixo.`);
+    setText("");
+    setFile(null);
+    setOpen(false);
+    router.refresh();
+  }
 
   function generate() {
     startTransition(async () => {
-      const res = await generateQuestionsAction(courseId, moduleId, quizId, text);
-      if (res?.error) {
-        toast.error(res.error);
-        return;
-      }
-      toast.success(`${res?.count ?? 0} questão(ões) gerada(s). Revise abaixo.`);
-      setText("");
-      setOpen(false);
-      router.refresh();
+      onResult(await generateQuestionsAction(courseId, moduleId, quizId, text));
+    });
+  }
+
+  function generateFromFile() {
+    if (!file) return;
+    const fd = new FormData();
+    fd.set("file", file);
+    startTransition(async () => {
+      onResult(await generateFromFileAction(courseId, moduleId, quizId, fd));
     });
   }
 
@@ -721,7 +737,7 @@ function AiGenerator({
         />
         <div className="flex gap-2">
           <Button type="button" size="sm" disabled={pending} onClick={generate}>
-            {pending ? "Gerando..." : "Gerar questões"}
+            {pending ? "Gerando..." : "Gerar do texto"}
           </Button>
           <Button
             type="button"
@@ -732,6 +748,32 @@ function AiGenerator({
           >
             Cancelar
           </Button>
+        </div>
+
+        {/* Ou: enviar um arquivo (.docx / .pdf / .txt) */}
+        <div className="flex flex-col gap-2 border-t pt-3">
+          <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <Upload className="h-3.5 w-3.5" />
+            Ou envie um arquivo (.docx, .pdf ou .txt)
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="file"
+              accept=".docx,.pdf,.txt,.md"
+              disabled={pending}
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className="text-sm file:mr-3 file:rounded-md file:border file:bg-background file:px-3 file:py-1.5 file:text-sm"
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={pending || !file}
+              onClick={generateFromFile}
+            >
+              {pending ? "Lendo..." : "Gerar do arquivo"}
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

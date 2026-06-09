@@ -170,11 +170,15 @@ function parseFormattedQuestions(text: string): GeneratedQuestionDraft[] {
       continue;
     }
 
-    // Alternativas logo abaixo (pulando linhas em branco).
+    // Alternativas logo abaixo. Tolera linhas em branco entre elas (extratores
+    // como o mammoth separam cada parágrafo por uma linha vazia).
     let j = i + 1;
-    while (j < lines.length && !lines[j]) j++;
     const opts: { letter: string; text: string }[] = [];
     while (j < lines.length) {
+      if (!lines[j]) {
+        j++;
+        continue;
+      }
       const m = lines[j].match(optionRe);
       if (!m) break;
       opts.push({ letter: m[1].toUpperCase(), text: m[2].trim() });

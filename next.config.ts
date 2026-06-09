@@ -22,6 +22,9 @@ const nextConfig: NextConfig = {
   // Build standalone: gera .next/standalone com server.js + deps mínimas,
   // ideal para imagem Docker enxuta (deploy via Coolify).
   output: "standalone",
+  // Libs de extração de texto (.docx/.pdf) só rodam no servidor; mantê-las
+  // externas evita problemas de bundling (pdfjs/worker) no build.
+  serverExternalPackages: ["mammoth", "pdf-parse"],
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

@@ -6,6 +6,7 @@ import { requireOrg } from "@/lib/tenant";
 import { assertPermission } from "@/lib/permissions";
 import { getOrgPlan } from "@/services/school.service";
 import { getAIProvider } from "@/lib/ai";
+import { extractTextFromUpload } from "@/services/document-extract.service";
 import {
   quizSettingsSchema,
   quizQuestionSchema,
@@ -231,14 +232,55 @@ export async function generateQuestionsAction(
   if (clean.length > 50000)
     return { error: "Texto muito longo (máx. 50.000 caracteres)." };
 
+  return generateAndInsert(ctx.organizationId, courseId, moduleId, quizId, clean);
+}
+
+/**
+ * Gera questões a partir de um ARQUIVO enviado (.docx/.pdf/.txt): extrai o
+ * texto no servidor e reaproveita a mesma pipeline de geração (Fase C).
+ */
+export async function generateFromFileAction(
+  courseId: string,
+  moduleId: string,
+  quizId: string,
+  formData: FormData,
+): Promise<ActionResult & { count?: number }> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "course:edit");
+
+  const plan = await getOrgPlan(ctx.organizationId);
+  if (!plan?.hasAiFeatures)
+    return { error: "Recurso de IA não disponível no seu plano." };
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0)
+    return { error: "Selecione um arquivo." };
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const extracted = await extractTextFromUpload(file.name, buffer);
+  if (!extracted.ok) return { error: extracted.error };
+
+  return generateAndInsert(ctx.organizationId, courseId, moduleId, quizId, extracted.text);
+}
+
+/**
+ * Núcleo compartilhado (texto colado / arquivo): chama a IA, valida cada
+ * questão pelo schema (descarta inválidas) e insere em lote como rascunho.
+ */
+async function generateAndInsert(
+  organizationId: string,
+  courseId: string,
+  moduleId: string,
+  quizId: string,
+  text: string,
+): Promise<ActionResult & { count?: number }> {
   let generated;
   try {
-    generated = await getAIProvider().generateQuestionsFromText({ text: clean });
+    generated = await getAIProvider().generateQuestionsFromText({ text });
   } catch {
     return { error: "Falha ao gerar as questões. Tente novamente." };
   }
 
-  // Valida cada questão; mantém apenas as válidas (a IA pode escorregar).
   const valid: QuizQuestionInput[] = [];
   for (const q of generated.questions) {
     const parsed = quizQuestionSchema.safeParse({
@@ -250,9 +292,9 @@ export async function generateQuestionsAction(
     if (parsed.success) valid.push(parsed.data);
   }
   if (valid.length === 0)
-    return { error: "Não foi possível extrair questões válidas do texto." };
+    return { error: "Não foi possível extrair questões válidas." };
 
-  const created = await addQuestionsBulk(ctx.organizationId, quizId, valid);
+  const created = await addQuestionsBulk(organizationId, quizId, valid);
   if (created == null) return { error: "Prova não encontrada." };
 
   revalidateQuiz(courseId, moduleId);
