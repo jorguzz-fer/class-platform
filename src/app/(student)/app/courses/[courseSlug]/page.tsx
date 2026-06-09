@@ -1,15 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, Circle, PlayCircle } from "lucide-react";
+import { CheckCircle2, Circle, PlayCircle, Star } from "lucide-react";
 
 import { requireOrg } from "@/lib/tenant";
 import {
   getStudentEnrollment,
   getCoursePlayer,
 } from "@/services/progress.service";
+import {
+  getStudentCourseRating,
+  getCourseRatingSummary,
+} from "@/services/rating.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { IssueCertificateButton } from "@/components/student/issue-certificate-button";
+import { StarRating } from "@/components/student/star-rating";
+import { rateCourseAction } from "@/lib/actions/rating-actions";
 import { db } from "@/lib/db";
 
 export default async function StudentCoursePage({
@@ -32,6 +38,11 @@ export default async function StudentCoursePage({
   const firstUnfinished = modules
     .flatMap((m) => m.lessons)
     .find((l) => progressByLesson.get(l.id) !== "COMPLETED");
+
+  const [myCourseRating, ratingSummary] = await Promise.all([
+    getStudentCourseRating(ctx.userId, enrollment.course.id),
+    getCourseRatingSummary(enrollment.course.id),
+  ]);
 
   // Certificado: curso concluído + verifica se já foi emitido.
   const courseCompleted = enrollment.status === "COMPLETED";
@@ -91,6 +102,25 @@ export default async function StudentCoursePage({
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+          <div>
+            <p className="text-sm font-medium">Avalie este curso</p>
+            {ratingSummary.count > 0 && (
+              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                {ratingSummary.average} · {ratingSummary.count}{" "}
+                {ratingSummary.count === 1 ? "avaliação" : "avaliações"}
+              </p>
+            )}
+          </div>
+          <StarRating
+            value={myCourseRating}
+            onRate={rateCourseAction.bind(null, enrollment.course.id, courseSlug)}
+          />
+        </CardContent>
+      </Card>
 
       <div className="flex flex-col gap-4">
         {modules.map((mod, idx) => (

@@ -163,6 +163,7 @@ model Course {
   cohorts      Cohort[]
   posts        Post[]
   orders       Order[]
+  ratings      CourseRating[]
 
   @@unique([organizationId, slug])
   @@unique([organizationId, sourceRef])
@@ -218,6 +219,7 @@ model Lesson {
   attachments  LessonAttachment[]
   progress     LessonProgress[]
   comments     Comment[]
+  ratings      LessonRating[]
 
   @@unique([moduleId, sourceRef])
   @@index([organizationId])
@@ -240,6 +242,39 @@ model LessonAttachment {
 
   @@index([organizationId])
   @@index([lessonId])
+}
+
+// Avaliações por estrelas (1–5) do aluno. organizationId/studentId são colunas
+// simples (sem FK) — o tenant é resolvido pela autorização e o aluno raramente
+// é apagado (usa-se anonimização). courseId/lessonId têm cascade.
+model CourseRating {
+  id             String   @id @default(cuid())
+  organizationId String
+  courseId       String
+  studentId      String
+  stars          Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, studentId])
+  @@index([organizationId])
+}
+
+model LessonRating {
+  id             String   @id @default(cuid())
+  organizationId String
+  lessonId       String
+  studentId      String
+  stars          Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, studentId])
+  @@index([organizationId])
 }
 
 // ----------------------------------------------------------------------------
