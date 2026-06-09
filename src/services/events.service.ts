@@ -50,30 +50,65 @@ export async function onEnrollmentCreated(
   }
 }
 
+/** Dono(s)/admin(s) da escola — destinatários das notificações internas. */
+async function getSchoolOwners(organizationId: string) {
+  return db.organizationMember.findMany({
+    where: { organizationId, role: { in: ["ORG_OWNER", "ORG_ADMIN"] } },
+    select: { userId: true, user: { select: { email: true } } },
+  });
+}
+
 /**
- * Aluno solicitou inscrição por link: avisa o(s) dono(s) da escola para
- * aprovar. Best-effort.
+ * Aluno se inscreveu por link e já tem acesso (inscrição aberta): avisa o(s)
+ * dono(s) da escola que a pessoa começou o curso. Best-effort.
  */
-export async function onEnrollmentRequested(
+export async function onEnrollmentStarted(
   organizationId: string,
   studentName: string,
   courseTitle: string,
 ): Promise<void> {
   try {
-    const owners = await db.organizationMember.findMany({
-      where: { organizationId, role: { in: ["ORG_OWNER", "ORG_ADMIN"] } },
-      select: { userId: true, user: { select: { email: true } } },
-    });
+    const owners = await getSchoolOwners(organizationId);
     await Promise.all(
       owners.map((owner) =>
         notify({
           organizationId,
           userId: owner.userId,
-          template: "enrollment_requested",
-          subject: `Nova solicitação de inscrição: ${courseTitle}`,
+          template: "enrollment_started",
+          subject: `${studentName} começou o curso: ${courseTitle}`,
           text:
-            `${studentName} solicitou inscrição no curso "${courseTitle}".\n` +
-            `Aprove ou recuse em: ${APP_URL}/dashboard/enrollments\n`,
+            `${studentName} se inscreveu e começou o curso "${courseTitle}".\n` +
+            `Acompanhe o progresso em: ${APP_URL}/dashboard/enrollments\n`,
+          email: owner.user.email,
+        }),
+      ),
+    );
+  } catch {
+    // best-effort
+  }
+}
+
+/**
+ * Aluno concluiu todas as aulas obrigatórias de um curso: avisa o(s) dono(s)
+ * da escola. Disparado apenas na transição para concluído. Best-effort.
+ */
+export async function onCourseCompleted(
+  organizationId: string,
+  studentName: string,
+  courseTitle: string,
+): Promise<void> {
+  try {
+    const owners = await getSchoolOwners(organizationId);
+    await Promise.all(
+      owners.map((owner) =>
+        notify({
+          organizationId,
+          userId: owner.userId,
+          template: "course_completed",
+          subject: `🎓 ${studentName} concluiu o curso: ${courseTitle}`,
+          text:
+            `${studentName} concluiu o curso "${courseTitle}".\n` +
+            `Veja os detalhes em: ${APP_URL}/dashboard/enrollments\n`,
           email: owner.user.email,
         }),
       ),

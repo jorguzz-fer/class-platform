@@ -4,11 +4,11 @@ import { db } from "@/lib/db";
 import type { SelfEnrollInput } from "@/lib/validators";
 
 /**
- * Auto-inscrição pública por link (SPEC: aluno solicita acesso a um curso).
+ * Auto-inscrição pública por link (estilo Netflix: inscrição aberta).
  *
- * O aluno informado cria a própria conta e fica com uma matrícula PENDING,
- * aguardando aprovação do dono da escola. NÃO concede acesso por si só — o
- * acesso só é liberado quando o dono aprova (PENDING → ACTIVE).
+ * O aluno informado cria a própria conta e recebe uma matrícula ACTIVE —
+ * acesso imediato ao curso, sem aprovação do dono. O dono é avisado por e-mail
+ * que a pessoa começou (e depois, quando concluir).
  *
  * Segurança: só aceita curso PUBLICADO e visível (PUBLIC/UNLISTED) da escola
  * resolvida pelo slug. Se o e-mail já tem conta, não cria nem vincula nada
@@ -84,7 +84,8 @@ export async function selfEnroll(
         organizationId: school.organizationId,
         courseId: course.id,
         studentId: user.id,
-        status: "PENDING",
+        // Inscrição aberta: acesso imediato, sem aprovação do dono.
+        status: "ACTIVE",
       },
     });
   });

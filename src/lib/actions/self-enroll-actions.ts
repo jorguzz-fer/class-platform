@@ -5,7 +5,7 @@ import { AuthError } from "next-auth";
 import { signIn } from "@/lib/auth";
 import { selfEnrollSchema } from "@/lib/validators";
 import { selfEnroll } from "@/services/self-enroll.service";
-import { onEnrollmentRequested } from "@/services/events.service";
+import { onEnrollmentStarted } from "@/services/events.service";
 
 export type SelfEnrollState = {
   error?: string;
@@ -46,8 +46,8 @@ export async function selfEnrollAction(
     return { error: result.error };
   }
 
-  // Avisa o dono (best-effort) antes de entrar.
-  await onEnrollmentRequested(
+  // Avisa o dono que a pessoa começou o curso (best-effort) antes de entrar.
+  await onEnrollmentStarted(
     result.organizationId,
     result.studentName,
     result.courseTitle,

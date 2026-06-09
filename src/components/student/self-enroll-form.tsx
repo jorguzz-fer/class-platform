@@ -17,7 +17,7 @@ function SubmitButton() {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? "Enviando..." : "Solicitar inscrição"}
+      {pending ? "Entrando..." : "Inscrever-se e começar"}
     </Button>
   );
 }

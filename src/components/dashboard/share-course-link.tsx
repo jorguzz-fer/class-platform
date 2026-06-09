@@ -60,8 +60,8 @@ export function ShareCourseLink({
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm text-muted-foreground">
-        Envie este link para o aluno. Ele se cadastra e fica aguardando sua
-        aprovação em Matrículas.
+        Envie este link para o aluno. Ele se cadastra e já começa o curso —
+        você recebe um e-mail avisando.
       </p>
       <code className="block w-fit max-w-full overflow-x-auto rounded bg-muted px-2 py-1 text-xs">
         {absoluteUrl}
