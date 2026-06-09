@@ -4,6 +4,7 @@ import { GraduationCap, BookOpen, Award, User, Users } from "lucide-react";
 import { requireActiveOrg } from "@/lib/tenant";
 import { logoutAction } from "@/lib/actions/auth-actions";
 import { Button } from "@/components/ui/button";
+import { ModeToggle } from "@/components/mode-toggle";
 
 // Área do aluno: sempre dinâmica (depende de sessão/banco).
 export const dynamic = "force-dynamic";
@@ -49,6 +50,7 @@ export default async function StudentLayout({
               <User className="h-4 w-4" />
               <span className="hidden md:inline">{ctx.name}</span>
             </span>
+            <ModeToggle />
             <form action={logoutAction}>
               <Button variant="ghost" size="sm" type="submit">
                 Sair

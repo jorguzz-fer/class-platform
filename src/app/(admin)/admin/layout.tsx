@@ -4,6 +4,7 @@ import { ShieldCheck, Building2, CreditCard, Users, BarChart3, ScrollText } from
 import { requireSuperAdmin } from "@/lib/tenant";
 import { logoutAction } from "@/lib/actions/auth-actions";
 import { Button } from "@/components/ui/button";
+import { ModeToggle } from "@/components/mode-toggle";
 
 // Painel da plataforma: sempre dinâmico (depende de sessão/banco).
 export const dynamic = "force-dynamic";
@@ -46,8 +47,11 @@ export default async function AdminLayout({
       <div className="flex flex-1 flex-col">
         <header className="flex h-16 items-center justify-between border-b bg-card px-6">
           <div className="md:hidden font-semibold">Super Admin</div>
-          <div className="ml-auto flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">{ctx.email}</span>
+          <div className="ml-auto flex items-center gap-3">
+            <span className="hidden text-sm text-muted-foreground sm:inline">
+              {ctx.email}
+            </span>
+            <ModeToggle />
             <form action={logoutAction}>
               <Button variant="ghost" size="sm" type="submit">
                 Sair
