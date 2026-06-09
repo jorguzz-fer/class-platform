@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { listAllUsers } from "@/services/admin.service";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +23,7 @@ export default async function AdminUsersPage() {
                 <th className="px-4 py-3 font-medium">Papel</th>
                 <th className="px-4 py-3 font-medium">Ativo</th>
                 <th className="px-4 py-3 font-medium">Criado em</th>
+                <th className="px-4 py-3 text-right font-medium">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -34,6 +37,14 @@ export default async function AdminUsersPage() {
                   <td className="px-4 py-3">{u.isActive ? "sim" : "não"}</td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {u.createdAt.toLocaleDateString("pt-BR")}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <Link
+                      href={`/admin/users/${u.id}`}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      Editar
+                    </Link>
                   </td>
                 </tr>
               ))}
