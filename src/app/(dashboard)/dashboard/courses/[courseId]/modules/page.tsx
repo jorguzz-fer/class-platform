@@ -52,6 +52,12 @@ export default async function CourseModulesPage({
             isPreview: l.isPreview,
             attachments: l.attachments,
           })),
+          quiz: m.quiz
+            ? {
+                questionCount: m.quiz._count.questions,
+                isPublished: m.quiz.isPublished,
+              }
+            : null,
         }))}
       />
     </div>

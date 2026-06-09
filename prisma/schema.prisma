@@ -164,6 +164,7 @@ model Course {
   posts        Post[]
   orders       Order[]
   ratings      CourseRating[]
+  quizzes      Quiz[]
 
   @@unique([organizationId, slug])
   @@unique([organizationId, sourceRef])
@@ -186,6 +187,7 @@ model Module {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   course       Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
   lessons      Lesson[]
+  quiz         Quiz?
 
   @@unique([courseId, sourceRef])
   @@index([organizationId])
@@ -345,6 +347,117 @@ model Certificate {
 }
 
 // ----------------------------------------------------------------------------
+// Provas / avaliações de módulo (Fase A)
+// ----------------------------------------------------------------------------
+// Uma prova (Quiz) pertence a um módulo (1:1). Quando publicada e marcada para
+// travar progresso, o aluno só acessa o próximo módulo após ser APROVADO.
+// Questões objetivas são corrigidas automaticamente; a dissertativa (OPEN) é
+// corrigida pelo dono da escola — a tentativa fica PENDING_GRADING até lá.
+//
+// Padrão multi-tenant: organizationId/studentId são colunas simples (sem FK),
+// como em CourseRating — o tenant é garantido pela autorização e o aluno usa
+// anonimização, não exclusão. courseId/moduleId têm cascade.
+
+model Quiz {
+  id             String   @id @default(cuid())
+  organizationId String
+  courseId       String
+  moduleId       String   @unique // 1:1 — uma prova por módulo
+  title          String
+  // Nota de corte (0–10). Aprovado quando a nota da tentativa ≥ passingScore.
+  passingScore   Int      @default(7)
+  // Limite de tentativas por aluno. null = ilimitado.
+  maxAttempts    Int?
+  // Trava o próximo módulo até o aluno ser aprovado.
+  blocksProgress Boolean  @default(true)
+  // Só vale (aparece/avalia) quando publicada e com ao menos uma questão.
+  isPublished    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  course    Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  module    Module         @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+
+  @@index([organizationId])
+  @@index([courseId])
+}
+
+model QuizQuestion {
+  id             String       @id @default(cuid())
+  organizationId String
+  quizId         String
+  type           QuestionType
+  statement      String
+  // Peso da questão na nota (somatório dos pontos = nota máxima, reescalada p/ 0–10).
+  points         Int          @default(1)
+  orderIndex     Int
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options QuizOption[]
+  answers QuizAnswer[]
+
+  @@index([organizationId])
+  @@index([quizId])
+}
+
+model QuizOption {
+  id         String  @id @default(cuid())
+  questionId String
+  text       String
+  isCorrect  Boolean @default(false)
+  orderIndex Int
+
+  question QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+}
+
+model QuizAttempt {
+  id             String        @id @default(cuid())
+  organizationId String
+  quizId         String
+  studentId      String
+  // Nota final 0–10; null enquanto PENDING_GRADING (dissertativa não corrigida).
+  score          Int?
+  status         AttemptStatus @default(PENDING_GRADING)
+  attemptNumber  Int
+  submittedAt    DateTime      @default(now())
+  gradedAt       DateTime?
+  createdAt      DateTime      @default(now())
+
+  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers QuizAnswer[]
+
+  @@index([organizationId])
+  @@index([quizId])
+  @@index([studentId])
+}
+
+model QuizAnswer {
+  id         String  @id @default(cuid())
+  attemptId  String
+  questionId String
+  // Escolha: ids das opções marcadas. Dissertativa: vazio (usa textAnswer).
+  selectedOptionIds String[]
+  textAnswer String?
+  // Pontos obtidos nesta questão (auto nas objetivas; atribuído pelo dono na OPEN).
+  awardedPoints Int     @default(0)
+  // null = ainda não avaliada (dissertativa pendente).
+  isCorrect  Boolean?
+  createdAt  DateTime @default(now())
+
+  attempt  QuizAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId])
+  @@index([questionId])
+}
+
+// ----------------------------------------------------------------------------
 // Planos SaaS e assinaturas
 // ----------------------------------------------------------------------------
 
@@ -363,6 +476,9 @@ model Plan {
   hasCertificates Boolean      @default(true)
   hasAnalytics    Boolean      @default(false)
   hasAiFeatures   Boolean      @default(false)
+  // Provas/avaliações de módulo. Default true: liberado a todos por ora; para
+  // restringir por plano, basta desligar a flag no plano e o gate já é checado.
+  hasAssessments  Boolean      @default(true)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -792,4 +908,17 @@ enum OrderStatus {
   FAILED
   REFUNDED
   CANCELED
+}
+
+enum QuestionType {
+  SINGLE_CHOICE // múltipla escolha, 1 correta
+  TRUE_FALSE // verdadeiro/falso
+  MULTI_SELECT // múltipla seleção, várias corretas
+  OPEN // dissertativa (corrigida pelo dono)
+}
+
+enum AttemptStatus {
+  PENDING_GRADING // enviada, aguardando correção da dissertativa
+  PASSED
+  FAILED
 }

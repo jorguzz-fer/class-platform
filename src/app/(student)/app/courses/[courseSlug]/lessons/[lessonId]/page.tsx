@@ -97,7 +97,7 @@ export default async function LessonPlayerPage({
   const { lesson, attachments, completed, nextLessonId, prevLessonId, position } =
     data;
 
-  const { modules, progressByLesson } = await getCoursePlayer(
+  const { modules, progressByLesson, lockedModuleIds } = await getCoursePlayer(
     ctx.userId,
     lesson.courseId,
   );
@@ -261,6 +261,7 @@ export default async function LessonPlayerPage({
             currentLessonId={lesson.id}
             modules={modules}
             completedLessonIds={completedLessonIds}
+            lockedModuleIds={lockedModuleIds}
           />
         </div>
       </aside>

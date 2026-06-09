@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { getLockedModuleIds } from "./quiz.service";
 
 /**
  * Serviço de Progresso e área do aluno (SPEC §10.4, §14.9).
@@ -110,7 +111,8 @@ export async function getCoursePlayer(studentId: string, courseId: string) {
   ]);
 
   const progressByLesson = new Map(progress.map((p) => [p.lessonId, p.status]));
-  return { modules, progressByLesson };
+  const lockedModuleIds = await getLockedModuleIds(studentId, courseId);
+  return { modules, progressByLesson, lockedModuleIds };
 }
 
 /** Carrega uma aula garantindo que pertence a um curso em que o aluno tem acesso. */
@@ -130,6 +132,11 @@ export async function getAccessibleLesson(studentId: string, lessonId: string) {
     select: { id: true },
   });
   if (!enrollment) return null;
+
+  // Trava de progressão: aula em módulo bloqueado (prova anterior não aprovada)
+  // não é acessível, mesmo via URL direta.
+  const locked = await getLockedModuleIds(studentId, lesson.courseId);
+  if (locked.has(lesson.moduleId)) return null;
 
   const prog = await db.lessonProgress.findUnique({
     where: { studentId_lessonId: { studentId, lessonId } },

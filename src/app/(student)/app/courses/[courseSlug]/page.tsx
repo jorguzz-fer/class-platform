@@ -1,12 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, Circle, PlayCircle, Star } from "lucide-react";
+import {
+  CheckCircle2,
+  Circle,
+  PlayCircle,
+  Star,
+  Lock,
+  ClipboardList,
+  Clock,
+} from "lucide-react";
 
 import { requireOrg } from "@/lib/tenant";
-import {
-  getStudentEnrollment,
-  getCoursePlayer,
-} from "@/services/progress.service";
+import { getStudentEnrollment } from "@/services/progress.service";
+import { getStudentCourseOutline } from "@/services/quiz.service";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   getStudentCourseRating,
   getCourseRatingSummary,
@@ -29,15 +37,13 @@ export default async function StudentCoursePage({
   const enrollment = await getStudentEnrollment(ctx.userId, courseSlug);
   if (!enrollment) notFound();
 
-  const { modules, progressByLesson } = await getCoursePlayer(
-    ctx.userId,
-    enrollment.course.id,
-  );
+  const modules = await getStudentCourseOutline(ctx.userId, enrollment.course.id);
 
-  // Primeira aula não concluída, para o botão "continuar".
+  // Primeira aula não concluída em módulo liberado, para o botão "continuar".
   const firstUnfinished = modules
+    .filter((m) => !m.locked)
     .flatMap((m) => m.lessons)
-    .find((l) => progressByLesson.get(l.id) !== "COMPLETED");
+    .find((l) => !l.completed);
 
   const [myCourseRating, ratingSummary] = await Promise.all([
     getStudentCourseRating(ctx.userId, enrollment.course.id),
@@ -124,23 +130,28 @@ export default async function StudentCoursePage({
 
       <div className="flex flex-col gap-4">
         {modules.map((mod, idx) => (
-          <Card key={mod.id}>
+          <Card key={mod.id} className={mod.locked ? "opacity-70" : undefined}>
             <CardHeader>
-              <CardTitle className="text-base">
+              <CardTitle className="flex items-center gap-2 text-base">
+                {mod.locked && <Lock className="h-4 w-4 text-muted-foreground" />}
                 {idx + 1}. {mod.title}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <ul>
-                {mod.lessons.map((lesson) => {
-                  const done = progressByLesson.get(lesson.id) === "COMPLETED";
-                  return (
-                    <li key={lesson.id} className="border-t first:border-t-0">
+                {mod.lessons.map((lesson) => (
+                  <li key={lesson.id} className="border-t first:border-t-0">
+                    {mod.locked ? (
+                      <div className="flex items-center gap-3 px-6 py-3 text-sm text-muted-foreground">
+                        <Lock className="h-4 w-4" />
+                        <span className="flex-1">{lesson.title}</span>
+                      </div>
+                    ) : (
                       <Link
                         href={`/app/courses/${courseSlug}/lessons/${lesson.id}`}
                         className="flex items-center gap-3 px-6 py-3 text-sm hover:bg-muted/40"
                       >
-                        {done ? (
+                        {lesson.completed ? (
                           <CheckCircle2 className="h-4 w-4 text-primary" />
                         ) : (
                           <Circle className="h-4 w-4 text-muted-foreground" />
@@ -152,15 +163,60 @@ export default async function StudentCoursePage({
                           </Badge>
                         )}
                       </Link>
-                    </li>
-                  );
-                })}
+                    )}
+                  </li>
+                ))}
                 {mod.lessons.length === 0 && (
                   <li className="px-6 py-3 text-sm text-muted-foreground">
                     Sem aulas neste módulo.
                   </li>
                 )}
               </ul>
+
+              {mod.quiz && !mod.locked && (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-muted/20 px-6 py-3">
+                  <span className="flex items-center gap-2 text-sm">
+                    <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                    {mod.quiz.passed ? (
+                      <span className="font-medium text-primary">
+                        Prova aprovada · nota {mod.quiz.bestScore}/10
+                      </span>
+                    ) : mod.quiz.pendingGrading ? (
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <Clock className="h-4 w-4" /> Aguardando correção
+                      </span>
+                    ) : (
+                      <span>
+                        Prova do módulo · nota de corte {mod.quiz.passingScore}/10
+                        {mod.quiz.attemptsLeft != null &&
+                          ` · ${mod.quiz.attemptsLeft} tentativa(s)`}
+                      </span>
+                    )}
+                  </span>
+
+                  {mod.quiz.canTake ? (
+                    <Link
+                      href={`/app/courses/${courseSlug}/quiz/${mod.quiz.id}`}
+                      className={cn(
+                        buttonVariants({ size: "sm" }),
+                        "gap-1",
+                      )}
+                    >
+                      <ClipboardList className="h-4 w-4" />
+                      {mod.quiz.lastStatus === "FAILED" ? "Refazer prova" : "Fazer prova"}
+                    </Link>
+                  ) : (
+                    !mod.quiz.passed &&
+                    !mod.quiz.pendingGrading && (
+                      <span className="text-xs text-muted-foreground">
+                        {!mod.quiz.requiredLessonsDone
+                          ? "Conclua as aulas para liberar"
+                          : "Sem tentativas restantes"}
+                      </span>
+                    )
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}

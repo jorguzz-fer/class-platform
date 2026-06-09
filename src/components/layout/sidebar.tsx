@@ -13,6 +13,7 @@ import {
   CreditCard,
   Building2,
   ShoppingCart,
+  ClipboardCheck,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ const navItems = [
   { href: "/dashboard/enrollments", label: "Matrículas", icon: GraduationCap },
   { href: "/dashboard/companies", label: "Empresas", icon: Building2 },
   { href: "/dashboard/certificates", label: "Certificados", icon: Award },
+  { href: "/dashboard/assessments", label: "Correções", icon: ClipboardCheck },
   { href: "/dashboard/sales", label: "Vendas", icon: ShoppingCart },
   { href: "/dashboard/reports", label: "Relatórios", icon: BarChart3 },
   { href: "/dashboard/settings", label: "Configurações", icon: Settings },

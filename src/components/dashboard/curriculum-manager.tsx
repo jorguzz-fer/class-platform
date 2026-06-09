@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -15,6 +16,7 @@ import {
   Music,
   Radio,
   Code,
+  ClipboardList,
 } from "lucide-react";
 import type { LessonContentType } from "@prisma/client";
 
@@ -46,11 +48,17 @@ export type LessonView = {
   attachments: { id: string; fileName: string; fileUrl: string }[];
 };
 
+export type ModuleQuizSummary = {
+  questionCount: number;
+  isPublished: boolean;
+};
+
 export type ModuleView = {
   id: string;
   title: string;
   description: string | null;
   lessons: LessonView[];
+  quiz: ModuleQuizSummary | null;
 };
 
 const contentIcons: Record<LessonContentType, typeof Video> = {
@@ -297,6 +305,30 @@ export function CurriculumManager({
                 Adicionar aula
               </Button>
             )}
+
+            {/* Prova do módulo */}
+            <div className="mt-1 flex items-center justify-between gap-2 border-t pt-3">
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                <ClipboardList className="h-4 w-4" />
+                Prova do módulo
+                {mod.quiz && (
+                  <Badge
+                    variant={mod.quiz.isPublished ? "default" : "secondary"}
+                    className="text-[10px]"
+                  >
+                    {mod.quiz.isPublished ? "Publicada" : "Rascunho"} ·{" "}
+                    {mod.quiz.questionCount}{" "}
+                    {mod.quiz.questionCount === 1 ? "questão" : "questões"}
+                  </Badge>
+                )}
+              </span>
+              <Link
+                href={`/dashboard/courses/${courseId}/modules/${mod.id}/quiz`}
+                className="inline-flex h-8 items-center gap-1 rounded-md border px-3 text-sm font-medium hover:bg-accent"
+              >
+                {mod.quiz ? "Editar prova" : "Criar prova"}
+              </Link>
+            </div>
           </CardContent>
         </Card>
       ))}
