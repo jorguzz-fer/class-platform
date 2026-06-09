@@ -65,12 +65,25 @@ A cada push na branch configurada, o Coolify rebuilda e redeploya.
 
 ### Aplicar migrations (passo controlado)
 
-Aplique **antes** de subir/escalar o app. No Coolify, use um **Pre-deployment
-command** ou um **terminal/exec** no container:
+> ⚠️ **Faça isto em TODO deploy que inclua novas migrations.** Se esquecer, o
+> app sobe com código que espera tabelas/colunas que ainda não existem no banco,
+> e as telas afetadas quebram com **500 (server-side exception)**. O jeito à
+> prova de esquecimento é configurar o **Pre-deployment Command** abaixo: ele
+> roda automaticamente a cada deploy e é idempotente (não custa nada quando não
+> há migration pendente).
+
+No Coolify, em **Pre-deployment Command** (recomendado) — ou num **terminal/exec**
+no container:
 
 ```sh
-node node_modules/prisma/build/index.js migrate deploy
+prisma migrate deploy
 ```
+
+> A CLI do Prisma é instalada **globalmente** na imagem (`npm install -g prisma`),
+> então o comando é só `prisma migrate deploy` — **não** `node node_modules/prisma/...`,
+> que não existe no build standalone. O schema e as migrations são copiados para
+> `/app/prisma`, e a `DATABASE_URL` já está no ambiente do container. Confira o
+> que está aplicado com `prisma migrate status`.
 
 Alternativa: definir `RUN_MIGRATIONS=true` apenas numa execução one-shot (o
 `docker-entrypoint.sh` migra antes de subir o servidor quando essa var está
