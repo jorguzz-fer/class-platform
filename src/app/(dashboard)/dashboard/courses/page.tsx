@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CourseStatusBadge } from "@/components/dashboard/course-status-badge";
 import { ShareCourseLinkCompact } from "@/components/dashboard/share-course-link-compact";
+import { CatalogLink } from "@/components/dashboard/catalog-link";
 import { cn } from "@/lib/utils";
 
 export default async function CoursesPage() {
@@ -20,7 +21,7 @@ export default async function CoursesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Cursos</h1>
           <p className="text-muted-foreground">
@@ -29,12 +30,25 @@ export default async function CoursesPage() {
         </div>
         <Link
           href="/dashboard/courses/new"
-          className={cn(buttonVariants(), "gap-2")}
+          className={cn(buttonVariants(), "w-fit gap-2")}
         >
           <Plus className="h-4 w-4" />
           Novo curso
         </Link>
       </div>
+
+      {/* Atalho para a página pública (catálogo "Netflix") da escola. */}
+      <Card>
+        <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium">Página pública da escola</p>
+            <p className="text-sm text-muted-foreground">
+              O catálogo que os alunos acessam para se inscrever nos cursos.
+            </p>
+          </div>
+          <CatalogLink subdomain={subdomain} />
+        </CardContent>
+      </Card>
 
       {courses.length === 0 ? (
         <Card>
