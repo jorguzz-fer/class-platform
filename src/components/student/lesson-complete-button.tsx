@@ -54,16 +54,6 @@ export function LessonCompleteButton({
           {pending ? "Salvando..." : "Marcar como concluída"}
         </Button>
       )}
-      {completed && nextLessonId && (
-        <Button
-          variant="outline"
-          onClick={() =>
-            router.push(`/app/courses/${courseSlug}/lessons/${nextLessonId}`)
-          }
-        >
-          Próxima aula
-        </Button>
-      )}
     </div>
   );
 }
