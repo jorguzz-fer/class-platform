@@ -2,35 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  BookOpen,
-  Users,
-  GraduationCap,
-  Award,
-  BarChart3,
-  Settings,
-  CreditCard,
-  Building2,
-  ShoppingCart,
-  ClipboardCheck,
-} from "lucide-react";
+import { GraduationCap } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/courses", label: "Cursos", icon: BookOpen },
-  { href: "/dashboard/students", label: "Alunos", icon: Users },
-  { href: "/dashboard/enrollments", label: "Matrículas", icon: GraduationCap },
-  { href: "/dashboard/companies", label: "Empresas", icon: Building2 },
-  { href: "/dashboard/certificates", label: "Certificados", icon: Award },
-  { href: "/dashboard/assessments", label: "Correções", icon: ClipboardCheck },
-  { href: "/dashboard/sales", label: "Vendas", icon: ShoppingCart },
-  { href: "/dashboard/reports", label: "Relatórios", icon: BarChart3 },
-  { href: "/dashboard/settings", label: "Configurações", icon: Settings },
-  { href: "/dashboard/billing", label: "Cobrança", icon: CreditCard },
-];
+import { dashboardNav } from "@/components/layout/nav-items";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -42,7 +17,7 @@ export function Sidebar() {
         <span>ClassOS</span>
       </div>
       <nav className="flex flex-1 flex-col gap-1 p-3">
-        {navItems.map((item) => {
+        {dashboardNav.map((item) => {
           const active =
             item.href === "/dashboard"
               ? pathname === item.href

@@ -14,8 +14,8 @@ export default async function AdminOrganizationsPage() {
         <p className="text-muted-foreground">Todas as escolas da plataforma.</p>
       </div>
       <Card>
-        <CardContent className="p-0">
-          <table className="w-full text-sm">
+        <CardContent className="overflow-x-auto p-0">
+          <table className="w-full min-w-[640px] text-sm">
             <thead className="border-b text-left text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Escola</th>

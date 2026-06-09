@@ -59,7 +59,7 @@ export default async function DashboardPage() {
         <CardHeader>
           <CardTitle className="text-base">Cursos recentes</CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="overflow-x-auto p-0">
           {recentCourses.length === 0 ? (
             <p className="px-6 py-8 text-center text-sm text-muted-foreground">
               Nenhum curso ainda.{" "}
@@ -68,7 +68,7 @@ export default async function DashboardPage() {
               </Link>
             </p>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="border-b text-left text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 font-medium">Curso</th>

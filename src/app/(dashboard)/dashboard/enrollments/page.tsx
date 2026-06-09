@@ -28,7 +28,7 @@ export default async function EnrollmentsPage() {
 
       {pending.length > 0 && (
         <Card className="border-primary/40">
-          <CardContent className="p-0">
+          <CardContent className="overflow-x-auto p-0">
             <div className="border-b px-4 py-3">
               <h2 className="font-semibold">
                 Solicitações pendentes ({pending.length})
@@ -37,7 +37,7 @@ export default async function EnrollmentsPage() {
                 Alunos que pediram acesso por link e aguardam sua aprovação.
               </p>
             </div>
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="border-b text-left text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 font-medium">Aluno</th>
@@ -82,8 +82,8 @@ export default async function EnrollmentsPage() {
         </Card>
       ) : (
         <Card>
-          <CardContent className="p-0">
-            <table className="w-full text-sm">
+          <CardContent className="overflow-x-auto p-0">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="border-b text-left text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 font-medium">Aluno</th>

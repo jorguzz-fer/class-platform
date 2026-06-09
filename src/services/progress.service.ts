@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { getLockedModuleIds } from "./quiz.service";
+import { onCourseCompleted } from "./events.service";
 
 /**
  * Serviço de Progresso e área do aluno (SPEC §10.4, §14.9).
@@ -254,6 +255,13 @@ export async function recomputeCourseCompletion(
 
   const isComplete = requiredDone >= requiredTotal;
 
+  // Estado anterior: usado para disparar o aviso só na TRANSIÇÃO p/ concluído
+  // (evita reenviar e-mail a cada nova aula concluída depois do término).
+  const before = await db.enrollment.findFirst({
+    where: { studentId, courseId, status: { in: ["ACTIVE", "COMPLETED"] } },
+    select: { organizationId: true, status: true },
+  });
+
   await db.enrollment.updateMany({
     where: { studentId, courseId, status: { in: ["ACTIVE", "COMPLETED"] } },
     data: {
@@ -261,6 +269,17 @@ export async function recomputeCourseCompletion(
       completedAt: isComplete ? new Date() : null,
     },
   });
+
+  // Acabou de concluir (não estava COMPLETED antes): avisa o dono da escola.
+  if (isComplete && before && before.status !== "COMPLETED") {
+    const [student, course] = await Promise.all([
+      db.user.findUnique({ where: { id: studentId }, select: { name: true } }),
+      db.course.findUnique({ where: { id: courseId }, select: { title: true } }),
+    ]);
+    if (student && course) {
+      await onCourseCompleted(before.organizationId, student.name, course.title);
+    }
+  }
 
   return isComplete;
 }

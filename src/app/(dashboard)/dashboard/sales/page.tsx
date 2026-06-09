@@ -86,13 +86,13 @@ export default async function SalesPage() {
       <div>
         <h2 className="mb-3 text-lg font-semibold">Pedidos</h2>
         <Card>
-          <CardContent className="p-0">
+          <CardContent className="overflow-x-auto p-0">
             {orders.length === 0 ? (
               <p className="px-6 py-8 text-center text-sm text-muted-foreground">
                 Nenhum pedido ainda.
               </p>
             ) : (
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[640px] text-sm">
                 <thead className="border-b text-left text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3 font-medium">Comprador</th>

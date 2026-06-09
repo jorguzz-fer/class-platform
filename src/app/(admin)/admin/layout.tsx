@@ -1,20 +1,15 @@
 import Link from "next/link";
-import { ShieldCheck, Building2, CreditCard, Users, BarChart3, ScrollText } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 import { requireSuperAdmin } from "@/lib/tenant";
 import { logoutAction } from "@/lib/actions/auth-actions";
 import { Button } from "@/components/ui/button";
+import { ModeToggle } from "@/components/mode-toggle";
+import { MobileNav } from "@/components/layout/mobile-nav";
+import { adminNav } from "@/components/layout/nav-items";
 
 // Painel da plataforma: sempre dinâmico (depende de sessão/banco).
 export const dynamic = "force-dynamic";
-
-const nav = [
-  { href: "/admin", label: "Métricas", icon: BarChart3 },
-  { href: "/admin/organizations", label: "Organizações", icon: Building2 },
-  { href: "/admin/plans", label: "Planos", icon: CreditCard },
-  { href: "/admin/users", label: "Usuários", icon: Users },
-  { href: "/admin/logs", label: "Logs", icon: ScrollText },
-];
 
 export default async function AdminLayout({
   children,
@@ -31,7 +26,7 @@ export default async function AdminLayout({
           <span>Super Admin</span>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-3">
-          {nav.map((item) => (
+          {adminNav.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -43,11 +38,17 @@ export default async function AdminLayout({
           ))}
         </nav>
       </aside>
-      <div className="flex flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between border-b bg-card px-6">
-          <div className="md:hidden font-semibold">Super Admin</div>
-          <div className="ml-auto flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">{ctx.email}</span>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex h-16 items-center justify-between border-b bg-card px-4 sm:px-6">
+          <div className="flex items-center gap-2">
+            <MobileNav nav="admin" />
+            <span className="font-semibold md:hidden">Super Admin</span>
+          </div>
+          <div className="ml-auto flex items-center gap-3">
+            <span className="hidden text-sm text-muted-foreground sm:inline">
+              {ctx.email}
+            </span>
+            <ModeToggle />
             <form action={logoutAction}>
               <Button variant="ghost" size="sm" type="submit">
                 Sair
@@ -55,7 +56,7 @@ export default async function AdminLayout({
             </form>
           </div>
         </header>
-        <main className="flex-1 bg-muted/30 p-6">{children}</main>
+        <main className="flex-1 bg-muted/30 p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );
