@@ -1,4 +1,5 @@
 import { requireStaff } from "@/lib/tenant";
+import { getSchool } from "@/services/school.service";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 
@@ -15,12 +16,14 @@ export default async function DashboardLayout({
   // /dashboard (exige login); este guard impede que um STUDENT acesse o painel
   // administrativo e bloqueia org suspensa (§11.1).
   const ctx = await requireStaff();
+  const school = await getSchool(ctx.organizationId);
+  const brand = { name: school?.name ?? "ClassOS", logoUrl: school?.logoUrl ?? null };
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar />
+      <Sidebar brand={brand} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar name={ctx.name} email={ctx.email} />
+        <Topbar name={ctx.name} email={ctx.email} brand={brand} />
         <main className="flex-1 bg-muted/30 p-4 sm:p-6">{children}</main>
       </div>
     </div>

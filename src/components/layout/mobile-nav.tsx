@@ -8,6 +8,7 @@ import { Menu, X, GraduationCap, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { dashboardNav, adminNav, type NavItem } from "@/components/layout/nav-items";
+import { BrandMark, type Brand } from "@/components/layout/brand-mark";
 
 const VARIANTS: Record<string, { items: NavItem[]; title: string; icon: typeof GraduationCap }> = {
   dashboard: { items: dashboardNav, title: "ClassOS", icon: GraduationCap },
@@ -19,7 +20,13 @@ const VARIANTS: Record<string, { items: NavItem[]; title: string; icon: typeof G
  * mobile (`md:hidden`), então este botão abre um painel deslizante com os
  * mesmos itens. Fecha ao navegar, clicar no fundo ou apertar Esc.
  */
-export function MobileNav({ nav = "dashboard" }: { nav?: "dashboard" | "admin" }) {
+export function MobileNav({
+  nav = "dashboard",
+  brand,
+}: {
+  nav?: "dashboard" | "admin";
+  brand?: Brand;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const { items, title, icon: BrandIcon } = VARIANTS[nav];
@@ -63,10 +70,14 @@ export function MobileNav({ nav = "dashboard" }: { nav?: "dashboard" | "admin" }
           {/* Painel deslizante */}
           <div className="absolute left-0 top-0 flex h-full w-72 max-w-[80%] flex-col border-r bg-card shadow-xl">
             <div className="flex h-16 items-center justify-between border-b px-4 font-semibold">
-              <span className="flex items-center gap-2">
-                <BrandIcon className="h-6 w-6" />
-                {title}
-              </span>
+              {brand ? (
+                <BrandMark brand={brand} />
+              ) : (
+                <span className="flex items-center gap-2">
+                  <BrandIcon className="h-6 w-6" />
+                  {title}
+                </span>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
