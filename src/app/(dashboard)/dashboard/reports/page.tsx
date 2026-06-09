@@ -64,7 +64,7 @@ export default async function ReportsPage() {
         <CardHeader>
           <CardTitle className="text-base">Desempenho por curso</CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="overflow-x-auto p-0">
           {courses.length === 0 ? (
             <p className="px-6 py-10 text-center text-sm text-muted-foreground">
               <BarChart3 className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
@@ -78,7 +78,7 @@ export default async function ReportsPage() {
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[640px] text-sm">
                 <thead className="border-b text-left text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3 font-medium">Curso</th>

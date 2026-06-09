@@ -44,8 +44,8 @@ export default async function AdminLayout({
           ))}
         </nav>
       </aside>
-      <div className="flex flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between border-b bg-card px-6">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex h-16 items-center justify-between border-b bg-card px-4 sm:px-6">
           <div className="md:hidden font-semibold">Super Admin</div>
           <div className="ml-auto flex items-center gap-3">
             <span className="hidden text-sm text-muted-foreground sm:inline">
@@ -59,7 +59,7 @@ export default async function AdminLayout({
             </form>
           </div>
         </header>
-        <main className="flex-1 bg-muted/30 p-6">{children}</main>
+        <main className="flex-1 bg-muted/30 p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

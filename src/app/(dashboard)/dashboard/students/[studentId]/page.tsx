@@ -62,13 +62,13 @@ export default async function StudentDetailPage({
         <CardHeader>
           <CardTitle className="text-base">Matrículas</CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="overflow-x-auto p-0">
           {enrollments.length === 0 ? (
             <p className="px-6 py-8 text-center text-sm text-muted-foreground">
               Este aluno ainda não tem matrículas.
             </p>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="border-b text-left text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 font-medium">Curso</th>
