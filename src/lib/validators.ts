@@ -111,6 +111,13 @@ export const lessonSchema = z.object({
   isRequired: z.coerce.boolean().default(true),
 });
 
+// Material da aula por link (nome + URL onde o arquivo está hospedado).
+export const lessonAttachmentSchema = z.object({
+  fileName: z.string().trim().min(1, "Informe um nome").max(200),
+  fileUrl: z.string().trim().url("URL inválida").max(1000),
+});
+export type LessonAttachmentInput = z.infer<typeof lessonAttachmentSchema>;
+
 // Reordenação: lista de ids na nova ordem.
 export const reorderSchema = z.object({
   ids: z.array(z.string().min(1)).min(1),

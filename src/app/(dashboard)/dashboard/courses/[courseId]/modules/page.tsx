@@ -50,6 +50,7 @@ export default async function CourseModulesPage({
             contentType: l.contentType,
             isRequired: l.isRequired,
             isPreview: l.isPreview,
+            attachments: l.attachments,
           })),
         }))}
       />

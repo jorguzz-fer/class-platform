@@ -98,6 +98,39 @@ export async function deleteLesson(organizationId: string, lessonId: string) {
   return result.count > 0;
 }
 
+/** Adiciona um material (por link) a uma aula. Escopado por org. */
+export async function addLessonAttachment(
+  organizationId: string,
+  lessonId: string,
+  input: { fileName: string; fileUrl: string },
+) {
+  const lesson = await db.lesson.findFirst({
+    where: { id: lessonId, organizationId },
+    select: { id: true },
+  });
+  if (!lesson) return null;
+
+  return db.lessonAttachment.create({
+    data: {
+      organizationId,
+      lessonId,
+      fileName: input.fileName,
+      fileUrl: input.fileUrl,
+    },
+  });
+}
+
+/** Remove um material de aula. Escopado por org. */
+export async function deleteLessonAttachment(
+  organizationId: string,
+  attachmentId: string,
+) {
+  const result = await db.lessonAttachment.deleteMany({
+    where: { id: attachmentId, organizationId },
+  });
+  return result.count > 0;
+}
+
 /** Reordena as aulas dentro de um módulo. */
 export async function reorderLessons(
   organizationId: string,
