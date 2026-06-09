@@ -174,6 +174,7 @@ export async function getLessonForPlayer(studentId: string, lessonId: string) {
     completed: progress?.status === "COMPLETED",
     nextLessonId,
     prevLessonId,
+    position: { current: index + 1, total: ordered.length },
   };
 }
 
