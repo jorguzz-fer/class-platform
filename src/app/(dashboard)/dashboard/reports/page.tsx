@@ -14,6 +14,7 @@ import {
   getEnrollmentBreakdown,
   getCourseReport,
 } from "@/services/metrics.service";
+import { getCourseRatingsByOrg } from "@/services/rating.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CourseStatusBadge } from "@/components/dashboard/course-status-badge";
 
@@ -21,9 +22,10 @@ export default async function ReportsPage() {
   const ctx = await requireOrg();
   if (!can(ctx.role, "org:view_reports")) redirect("/dashboard");
 
-  const [breakdown, courses] = await Promise.all([
+  const [breakdown, courses, ratings] = await Promise.all([
     getEnrollmentBreakdown(ctx.organizationId),
     getCourseReport(ctx.organizationId),
+    getCourseRatingsByOrg(ctx.organizationId),
   ]);
 
   const cards = [
@@ -87,6 +89,7 @@ export default async function ReportsPage() {
                     <th className="px-4 py-3 text-right font-medium">Concluídas</th>
                     <th className="px-4 py-3 text-right font-medium">Pendentes</th>
                     <th className="px-4 py-3 text-right font-medium">Conclusão</th>
+                    <th className="px-4 py-3 text-right font-medium">Nota</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -123,6 +126,14 @@ export default async function ReportsPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         {course.completionRate}%
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {(() => {
+                          const r = ratings.get(course.id);
+                          return r && r.count > 0
+                            ? `★ ${r.average} (${r.count})`
+                            : "—";
+                        })()}
                       </td>
                     </tr>
                   ))}

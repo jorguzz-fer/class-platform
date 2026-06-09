@@ -11,12 +11,15 @@ import {
 import { requireOrg } from "@/lib/tenant";
 import { isStaff } from "@/lib/permissions";
 import { getLessonForPlayer, getCoursePlayer } from "@/services/progress.service";
+import { getStudentLessonRating } from "@/services/rating.service";
 import { getOrgPlan } from "@/services/school.service";
 import { listLessonComments } from "@/services/community.service";
 import { LessonCompleteButton } from "@/components/student/lesson-complete-button";
 import { TutorChat } from "@/components/student/tutor-chat";
 import { LessonComments } from "@/components/student/lesson-comments";
 import { CourseOutlineNav } from "@/components/student/course-outline-nav";
+import { StarRating } from "@/components/student/star-rating";
+import { rateLessonAction } from "@/lib/actions/rating-actions";
 import { resolveEmbed } from "@/lib/video/registry";
 import { Card, CardContent } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -121,6 +124,7 @@ export default async function LessonPlayerPage({
   const plan = await getOrgPlan(ctx.organizationId);
   const aiEnabled = plan?.hasAiFeatures ?? false;
   const comments = await listLessonComments(ctx.organizationId, lesson.id);
+  const lessonRating = await getStudentLessonRating(ctx.userId, lesson.id);
 
   const prevHref = prevLessonId
     ? `/app/courses/${courseSlug}/lessons/${prevLessonId}`
@@ -213,6 +217,17 @@ export default async function LessonPlayerPage({
             nextLessonId={nextLessonId}
           />
         </div>
+
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+            <span className="text-sm font-medium">Avalie esta aula</span>
+            <StarRating
+              value={lessonRating}
+              size="sm"
+              onRate={rateLessonAction.bind(null, lesson.id)}
+            />
+          </CardContent>
+        </Card>
 
         {aiEnabled && <TutorChat courseId={lesson.courseId} lessonId={lesson.id} />}
 

@@ -206,6 +206,11 @@ export const selfEnrollSchema = z.object({
   password: passwordSchema,
 });
 
+// Avaliação por estrelas (1 a 5).
+export const ratingSchema = z.object({
+  stars: z.coerce.number().int().min(1, "Nota inválida").max(5, "Nota inválida"),
+});
+
 // Edição de usuário pelo painel da plataforma (SUPER_ADMIN).
 export const adminUpdateUserSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome").max(120),
