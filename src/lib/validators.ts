@@ -375,3 +375,101 @@ export const checkoutSchema = z.object({
 
 export type CreateCouponInput = z.infer<typeof createCouponSchema>;
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
+
+// ---------------------------------------------------------------------------
+// Provas / avaliações de módulo (Fase A)
+// ---------------------------------------------------------------------------
+
+export const questionTypes = [
+  "SINGLE_CHOICE",
+  "TRUE_FALSE",
+  "MULTI_SELECT",
+  "OPEN",
+] as const;
+
+// Configurações da prova. maxAttempts vazio = ilimitado (tratado na ação).
+export const quizSettingsSchema = z.object({
+  title: z.string().trim().min(2, "Título muito curto").max(160),
+  passingScore: z.coerce
+    .number({ invalid_type_error: "Nota inválida" })
+    .int()
+    .min(0, "Mínimo 0")
+    .max(10, "Máximo 10"),
+  maxAttempts: z.coerce
+    .number({ invalid_type_error: "Número inválido" })
+    .int()
+    .min(1, "Mínimo 1")
+    .max(50, "Máximo 50")
+    .optional(),
+  blocksProgress: z.coerce.boolean().default(true),
+});
+export type QuizSettingsInput = z.infer<typeof quizSettingsSchema>;
+
+const quizOptionInput = z.object({
+  text: z.string().trim().min(1, "Texto da opção vazio").max(500),
+  isCorrect: z.boolean(),
+});
+
+// Questão (objeto estruturado — opções aninhadas; não vem de FormData).
+export const quizQuestionSchema = z
+  .object({
+    type: z.enum(questionTypes),
+    statement: z.string().trim().min(1, "Enunciado vazio").max(2000),
+    points: z.coerce.number().int().min(1, "Mínimo 1 ponto").max(100).default(1),
+    options: z.array(quizOptionInput).max(10).default([]),
+  })
+  .superRefine((q, ctx) => {
+    if (q.type === "OPEN") return; // dissertativa não tem opções
+    if (q.options.length < 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["options"],
+        message: "Inclua ao menos 2 opções.",
+      });
+      return;
+    }
+    const correct = q.options.filter((o) => o.isCorrect).length;
+    if (q.type === "MULTI_SELECT") {
+      if (correct < 1)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["options"],
+          message: "Marque ao menos uma opção correta.",
+        });
+    } else if (correct !== 1) {
+      // SINGLE_CHOICE e TRUE_FALSE: exatamente uma correta
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["options"],
+        message: "Marque exatamente uma opção correta.",
+      });
+    }
+  });
+export type QuizQuestionInput = z.infer<typeof quizQuestionSchema>;
+
+// Respostas do aluno ao enviar a prova.
+export const quizSubmissionSchema = z.object({
+  answers: z
+    .array(
+      z.object({
+        questionId: z.string().min(1),
+        selectedOptionIds: z.array(z.string().min(1)).max(10).default([]),
+        textAnswer: z.string().max(10000).optional(),
+      }),
+    )
+    .max(100),
+});
+export type QuizSubmissionInput = z.infer<typeof quizSubmissionSchema>;
+
+// Correção das dissertativas pelo dono.
+export const quizGradeSchema = z.object({
+  grades: z
+    .array(
+      z.object({
+        answerId: z.string().min(1),
+        awardedPoints: z.coerce.number().int().min(0).max(100),
+      }),
+    )
+    .max(100),
+});
+export type QuizGradeInput = z.infer<typeof quizGradeSchema>;

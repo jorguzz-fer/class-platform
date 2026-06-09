@@ -34,7 +34,22 @@ export function listModules(organizationId: string, courseId: string) {
           },
         },
       },
+      quiz: {
+        select: {
+          id: true,
+          isPublished: true,
+          _count: { select: { questions: true } },
+        },
+      },
     },
+  });
+}
+
+/** Carrega um módulo da organização (id, título, curso). */
+export function getModule(organizationId: string, moduleId: string) {
+  return db.module.findFirst({
+    where: { id: moduleId, organizationId },
+    select: { id: true, title: true, courseId: true },
   });
 }
 
