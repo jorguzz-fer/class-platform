@@ -10,6 +10,7 @@ import {
   Building2,
   ShoppingCart,
   ClipboardCheck,
+  ScrollText,
   type LucideIcon,
 } from "lucide-react";
 
@@ -28,4 +29,13 @@ export const dashboardNav: NavItem[] = [
   { href: "/dashboard/reports", label: "Relatórios", icon: BarChart3 },
   { href: "/dashboard/settings", label: "Configurações", icon: Settings },
   { href: "/dashboard/billing", label: "Cobrança", icon: CreditCard },
+];
+
+/** Itens de navegação do super admin (sidebar e menu mobile). */
+export const adminNav: NavItem[] = [
+  { href: "/admin", label: "Métricas", icon: BarChart3 },
+  { href: "/admin/organizations", label: "Organizações", icon: Building2 },
+  { href: "/admin/plans", label: "Planos", icon: CreditCard },
+  { href: "/admin/users", label: "Usuários", icon: Users },
+  { href: "/admin/logs", label: "Logs", icon: ScrollText },
 ];

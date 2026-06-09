@@ -2,6 +2,7 @@ import Link from "next/link";
 import { GraduationCap } from "lucide-react";
 
 import { ResetPasswordForm } from "@/components/forms/reset-password-form";
+import { CornerModeToggle } from "@/components/public/corner-mode-toggle";
 import {
   Card,
   CardContent,
@@ -19,6 +20,7 @@ export default async function ResetPasswordPage({
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
+      <CornerModeToggle />
       <div className="w-full max-w-sm">
         <Link
           href="/"

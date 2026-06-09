@@ -3,20 +3,27 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, GraduationCap } from "lucide-react";
+import { Menu, X, GraduationCap, ShieldCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { dashboardNav } from "@/components/layout/nav-items";
+import { dashboardNav, adminNav, type NavItem } from "@/components/layout/nav-items";
+
+const VARIANTS: Record<string, { items: NavItem[]; title: string; icon: typeof GraduationCap }> = {
+  dashboard: { items: dashboardNav, title: "ClassOS", icon: GraduationCap },
+  admin: { items: adminNav, title: "Super Admin", icon: ShieldCheck },
+};
 
 /**
- * Menu de navegação do painel para telas pequenas (drawer). A sidebar fica
- * oculta em mobile (`md:hidden`), então este botão abre um painel deslizante
- * com os mesmos itens. Fecha ao navegar, clicar no fundo ou apertar Esc.
+ * Menu de navegação para telas pequenas (drawer). A sidebar fica oculta em
+ * mobile (`md:hidden`), então este botão abre um painel deslizante com os
+ * mesmos itens. Fecha ao navegar, clicar no fundo ou apertar Esc.
  */
-export function MobileNav() {
+export function MobileNav({ nav = "dashboard" }: { nav?: "dashboard" | "admin" }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { items, title, icon: BrandIcon } = VARIANTS[nav];
+  const rootHref = items[0].href;
 
   // Fecha ao trocar de rota.
   useEffect(() => setOpen(false), [pathname]);
@@ -57,8 +64,8 @@ export function MobileNav() {
           <div className="absolute left-0 top-0 flex h-full w-72 max-w-[80%] flex-col border-r bg-card shadow-xl">
             <div className="flex h-16 items-center justify-between border-b px-4 font-semibold">
               <span className="flex items-center gap-2">
-                <GraduationCap className="h-6 w-6" />
-                ClassOS
+                <BrandIcon className="h-6 w-6" />
+                {title}
               </span>
               <Button
                 variant="ghost"
@@ -70,9 +77,9 @@ export function MobileNav() {
               </Button>
             </div>
             <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-              {dashboardNav.map((item) => {
+              {items.map((item) => {
                 const active =
-                  item.href === "/dashboard"
+                  item.href === rootHref
                     ? pathname === item.href
                     : pathname.startsWith(item.href);
                 return (
