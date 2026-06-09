@@ -91,6 +91,12 @@ export function BrandingForm({ defaults }: { defaults: Defaults }) {
               className="flex-1"
             />
           </div>
+          <p className="text-xs text-muted-foreground">
+            Recomendado: imagem <strong>quadrada</strong> de 256×256px (mín.
+            128px). Formatos: <strong>PNG</strong> (de preferência com fundo
+            transparente), <strong>SVG</strong>, JPG ou WEBP. Use uma URL pública
+            e direta para o arquivo (terminando em .png, .svg, etc.).
+          </p>
           {logoUrl.trim() && !/^https?:\/\//i.test(logoUrl.trim()) && (
             <p className="text-xs text-muted-foreground">
               A URL precisa começar com https:// (ex.: https://site.com/logo.png).
@@ -101,6 +107,10 @@ export function BrandingForm({ defaults }: { defaults: Defaults }) {
         <div className="flex flex-col gap-2">
           <Label htmlFor="faviconUrl">URL do favicon</Label>
           <Input id="faviconUrl" name="faviconUrl" type="url" defaultValue={defaults.faviconUrl ?? ""} />
+          <p className="text-xs text-muted-foreground">
+            Recomendado: quadrado de 32×32 ou 64×64px. Formatos:{" "}
+            <strong>PNG</strong> ou .ico.
+          </p>
           <Field messages={state?.fieldErrors?.faviconUrl} />
         </div>
       </div>
