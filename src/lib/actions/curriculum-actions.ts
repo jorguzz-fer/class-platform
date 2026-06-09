@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireOrg } from "@/lib/tenant";
 import { assertPermission } from "@/lib/permissions";
-import { moduleSchema, lessonSchema } from "@/lib/validators";
+import { moduleSchema, lessonSchema, lessonAttachmentSchema } from "@/lib/validators";
 import { getVideoProvider } from "@/lib/video/registry";
 import type { LessonServiceInput } from "@/services/lesson.service";
 import {
@@ -18,6 +18,8 @@ import {
   updateLesson,
   deleteLesson,
   reorderLessons,
+  addLessonAttachment,
+  deleteLessonAttachment,
 } from "@/services/lesson.service";
 
 export type ActionResult = { error?: string; fieldErrors?: Record<string, string[]> } | null;
@@ -205,6 +207,44 @@ export async function reorderLessonsAction(
   assertPermission(ctx.role, "course:edit");
 
   await reorderLessons(ctx.organizationId, moduleId, orderedIds);
+  revalidateCourse(courseId);
+  return null;
+}
+
+// ---- Materiais da aula ---------------------------------------------------
+
+export async function addLessonAttachmentAction(
+  courseId: string,
+  lessonId: string,
+  _prev: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "course:edit");
+
+  const parsed = lessonAttachmentSchema.safeParse({
+    fileName: formData.get("fileName"),
+    fileUrl: formData.get("fileUrl"),
+  });
+  if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
+
+  const created = await addLessonAttachment(ctx.organizationId, lessonId, parsed.data);
+  if (!created) return { error: "Aula não encontrada." };
+
+  revalidateCourse(courseId);
+  return null;
+}
+
+export async function deleteLessonAttachmentAction(
+  courseId: string,
+  attachmentId: string,
+): Promise<ActionResult> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "course:edit");
+
+  const ok = await deleteLessonAttachment(ctx.organizationId, attachmentId);
+  if (!ok) return { error: "Material não encontrado." };
+
   revalidateCourse(courseId);
   return null;
 }

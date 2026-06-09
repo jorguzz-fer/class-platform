@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { LessonMaterials } from "@/components/dashboard/lesson-materials";
 import { listVideoProviders } from "@/lib/video/registry";
 import {
   createModuleAction,
@@ -42,6 +43,7 @@ export type LessonView = {
   contentType: LessonContentType;
   isRequired: boolean;
   isPreview: boolean;
+  attachments: { id: string; fileName: string; fileUrl: string }[];
 };
 
 export type ModuleView = {
@@ -207,57 +209,64 @@ export function CurriculumManager({
                 return (
                   <li
                     key={lesson.id}
-                    className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-muted/40"
+                    className="flex flex-col gap-1 rounded-md px-2 py-1.5 hover:bg-muted/40"
                   >
-                    <span className="flex items-center gap-2 text-sm">
-                      <Icon className="h-4 w-4 text-muted-foreground" />
-                      {lesson.title}
-                      {lesson.isPreview && (
-                        <Badge variant="outline" className="text-[10px]">
-                          Prévia
-                        </Badge>
-                      )}
-                      {!lesson.isRequired && (
-                        <Badge variant="secondary" className="text-[10px]">
-                          Opcional
-                        </Badge>
-                      )}
-                    </span>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={pending || lIdx === 0}
-                        onClick={() => moveLesson(mod.id, mod.lessons, lIdx, -1)}
-                        title="Mover para cima"
-                      >
-                        <ChevronUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={pending || lIdx === mod.lessons.length - 1}
-                        onClick={() => moveLesson(mod.id, mod.lessons, lIdx, 1)}
-                        title="Mover para baixo"
-                      >
-                        <ChevronDown className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={pending}
-                        onClick={() => {
-                          if (!confirm("Excluir esta aula?")) return;
-                          handle(
-                            () => deleteLessonAction(courseId, lesson.id),
-                            "Aula excluída.",
-                          );
-                        }}
-                        title="Excluir aula"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-2 text-sm">
+                        <Icon className="h-4 w-4 text-muted-foreground" />
+                        {lesson.title}
+                        {lesson.isPreview && (
+                          <Badge variant="outline" className="text-[10px]">
+                            Prévia
+                          </Badge>
+                        )}
+                        {!lesson.isRequired && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            Opcional
+                          </Badge>
+                        )}
+                      </span>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={pending || lIdx === 0}
+                          onClick={() => moveLesson(mod.id, mod.lessons, lIdx, -1)}
+                          title="Mover para cima"
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={pending || lIdx === mod.lessons.length - 1}
+                          onClick={() => moveLesson(mod.id, mod.lessons, lIdx, 1)}
+                          title="Mover para baixo"
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={pending}
+                          onClick={() => {
+                            if (!confirm("Excluir esta aula?")) return;
+                            handle(
+                              () => deleteLessonAction(courseId, lesson.id),
+                              "Aula excluída.",
+                            );
+                          }}
+                          title="Excluir aula"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
+                    <LessonMaterials
+                      courseId={courseId}
+                      lessonId={lesson.id}
+                      attachments={lesson.attachments}
+                    />
                   </li>
                 );
               })}
