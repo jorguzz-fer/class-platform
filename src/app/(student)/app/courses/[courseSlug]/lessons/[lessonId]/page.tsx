@@ -19,6 +19,7 @@ import { TutorChat } from "@/components/student/tutor-chat";
 import { LessonComments } from "@/components/student/lesson-comments";
 import { CourseOutlineNav } from "@/components/student/course-outline-nav";
 import { StarRating } from "@/components/student/star-rating";
+import { LessonVideoPlayer } from "@/components/student/lesson-video-player";
 import { rateLessonAction } from "@/lib/actions/rating-actions";
 import { resolveEmbed } from "@/lib/video/registry";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,34 +34,31 @@ function LessonContent({
   videoId,
   videoUrl,
   textContent,
+  lessonId,
+  courseSlug,
+  completed,
 }: {
   contentType: string;
   videoProvider: string | null;
   videoId: string | null;
   videoUrl: string | null;
   textContent: string | null;
+  lessonId: string;
+  courseSlug: string;
+  completed: boolean;
 }) {
   if (contentType === "VIDEO" || contentType === "EMBED") {
     const embed = resolveEmbed({ videoProvider, videoId, videoUrl });
-    if (embed.type === "iframe") {
+    if (embed.type !== "none") {
       return (
-        <div className="aspect-video w-full overflow-hidden rounded-lg border bg-black">
-          <iframe
-            src={embed.src}
-            className="h-full w-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            title="Player da aula"
-          />
-        </div>
-      );
-    }
-    if (embed.type === "native") {
-      return (
-        <div className="aspect-video w-full overflow-hidden rounded-lg border bg-black">
-          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-          <video src={embed.src} controls className="h-full w-full" />
-        </div>
+        <LessonVideoPlayer
+          embed={embed}
+          provider={videoProvider}
+          videoId={videoId}
+          lessonId={lessonId}
+          courseSlug={courseSlug}
+          completed={completed}
+        />
       );
     }
   }
@@ -161,6 +159,9 @@ export default async function LessonPlayerPage({
           videoId={lesson.videoId}
           videoUrl={lesson.videoUrl}
           textContent={lesson.textContent}
+          lessonId={lesson.id}
+          courseSlug={courseSlug}
+          completed={completed}
         />
 
         {/* Navegação anterior/próxima (sempre visível) */}
