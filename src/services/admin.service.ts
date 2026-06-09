@@ -30,6 +30,7 @@ export function listOrganizations() {
       slug: true,
       status: true,
       subscriptionStatus: true,
+      planId: true,
       createdAt: true,
       _count: { select: { members: true, courses: true } },
     },
@@ -110,6 +111,26 @@ export async function setOrganizationStatus(
   await db.organization.update({
     where: { id: organizationId },
     data: { status },
+  });
+  return true;
+}
+
+/**
+ * Vincula a organização a um plano (define quais recursos ela tem, ex.:
+ * hasAiFeatures). Valida que o plano existe antes de aplicar.
+ */
+export async function setOrganizationPlan(
+  organizationId: string,
+  planId: string,
+) {
+  const plan = await db.plan.findUnique({
+    where: { id: planId },
+    select: { id: true },
+  });
+  if (!plan) return false;
+  await db.organization.update({
+    where: { id: organizationId },
+    data: { planId },
   });
   return true;
 }

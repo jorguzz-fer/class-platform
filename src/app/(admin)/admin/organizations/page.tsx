@@ -1,9 +1,11 @@
-import { listOrganizations } from "@/services/admin.service";
+import { listOrganizations, listPlans } from "@/services/admin.service";
 import { Card, CardContent } from "@/components/ui/card";
 import { OrgStatusSelect } from "@/components/admin/org-status-select";
+import { OrgPlanSelect } from "@/components/admin/org-plan-select";
 
 export default async function AdminOrganizationsPage() {
-  const orgs = await listOrganizations();
+  const [orgs, plans] = await Promise.all([listOrganizations(), listPlans()]);
+  const planOptions = plans.map((p) => ({ id: p.id, name: p.name }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -20,6 +22,7 @@ export default async function AdminOrganizationsPage() {
                 <th className="px-4 py-3 font-medium">Slug</th>
                 <th className="px-4 py-3 font-medium">Membros</th>
                 <th className="px-4 py-3 font-medium">Cursos</th>
+                <th className="px-4 py-3 font-medium">Plano</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Criada em</th>
               </tr>
@@ -32,6 +35,13 @@ export default async function AdminOrganizationsPage() {
                   <td className="px-4 py-3">{org._count.members}</td>
                   <td className="px-4 py-3">{org._count.courses}</td>
                   <td className="px-4 py-3">
+                    <OrgPlanSelect
+                      organizationId={org.id}
+                      planId={org.planId}
+                      plans={planOptions}
+                    />
+                  </td>
+                  <td className="px-4 py-3">
                     <OrgStatusSelect organizationId={org.id} status={org.status} />
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
@@ -41,7 +51,7 @@ export default async function AdminOrganizationsPage() {
               ))}
               {orgs.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                     Nenhuma organização ainda.
                   </td>
                 </tr>

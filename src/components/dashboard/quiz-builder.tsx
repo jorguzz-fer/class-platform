@@ -11,6 +11,8 @@ import {
   Pencil,
   Check,
   X,
+  Sparkles,
+  Upload,
 } from "lucide-react";
 import type { QuestionType } from "@prisma/client";
 
@@ -29,6 +31,8 @@ import {
   updateQuestionAction,
   deleteQuestionAction,
   reorderQuestionsAction,
+  generateQuestionsAction,
+  generateFromFileAction,
   type ActionResult,
 } from "@/lib/actions/quiz-actions";
 import type { QuizQuestionInput } from "@/lib/validators";
@@ -65,10 +69,12 @@ export function QuizBuilder({
   courseId,
   moduleId,
   quiz,
+  aiEnabled,
 }: {
   courseId: string;
   moduleId: string;
   quiz: QuizView | null;
+  aiEnabled: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -221,6 +227,8 @@ export function QuizBuilder({
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Questões ({quiz.questions.length})
         </h2>
+
+        {aiEnabled && <AiGenerator courseId={courseId} moduleId={moduleId} quizId={quiz.id} />}
 
         {quiz.questions.map((q, idx) => (
           <Card key={q.id}>
@@ -647,5 +655,127 @@ function QuestionForm({
         </Button>
       </div>
     </div>
+  );
+}
+
+// ---- Geração por IA (Fase B) ---------------------------------------------
+
+function AiGenerator({
+  courseId,
+  moduleId,
+  quizId,
+}: {
+  courseId: string;
+  moduleId: string;
+  quizId: string;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+
+  function onResult(res: (ActionResult & { count?: number }) | null) {
+    if (res?.error) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success(`${res?.count ?? 0} questão(ões) gerada(s). Revise abaixo.`);
+    setText("");
+    setFile(null);
+    setOpen(false);
+    router.refresh();
+  }
+
+  function generate() {
+    startTransition(async () => {
+      onResult(await generateQuestionsAction(courseId, moduleId, quizId, text));
+    });
+  }
+
+  function generateFromFile() {
+    if (!file) return;
+    const fd = new FormData();
+    fd.set("file", file);
+    startTransition(async () => {
+      onResult(await generateFromFileAction(courseId, moduleId, quizId, fd));
+    });
+  }
+
+  if (!open) {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-fit gap-1"
+        onClick={() => setOpen(true)}
+      >
+        <Sparkles className="h-4 w-4" />
+        Gerar com IA
+      </Button>
+    );
+  }
+
+  return (
+    <Card className="border-dashed">
+      <CardContent className="flex flex-col gap-3 p-4">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <p className="text-sm font-medium">Gerar questões com IA</p>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Cole o conteúdo ou um banco de questões (com gabarito). A IA monta as
+          questões como rascunho — você revisa e ajusta antes de publicar.
+        </p>
+        <Textarea
+          rows={6}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={
+            "Ex.: Por que a NR-01 é importante?\nA) ...\nB) ...\nGabarito: B"
+          }
+        />
+        <div className="flex gap-2">
+          <Button type="button" size="sm" disabled={pending} onClick={generate}>
+            {pending ? "Gerando..." : "Gerar do texto"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={pending}
+            onClick={() => setOpen(false)}
+          >
+            Cancelar
+          </Button>
+        </div>
+
+        {/* Ou: enviar um arquivo (.docx / .pdf / .txt) */}
+        <div className="flex flex-col gap-2 border-t pt-3">
+          <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <Upload className="h-3.5 w-3.5" />
+            Ou envie um arquivo (.docx, .pdf ou .txt)
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="file"
+              accept=".docx,.pdf,.txt,.md"
+              disabled={pending}
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className="text-sm file:mr-3 file:rounded-md file:border file:bg-background file:px-3 file:py-1.5 file:text-sm"
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={pending || !file}
+              onClick={generateFromFile}
+            >
+              {pending ? "Lendo..." : "Gerar do arquivo"}
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

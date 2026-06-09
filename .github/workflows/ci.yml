@@ -1,0 +1,47 @@
+name: CI
+
+# Verifica tipos, lint e build a cada push e PR — pega erros antes do deploy.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    # Envs de placeholder: o build não conecta ao banco (páginas do painel são
+    # force-dynamic; as estáticas não consultam o banco). `prisma generate` e
+    # `next build` só precisam que as variáveis existam, não de valores reais.
+    env:
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?schema=public"
+      AUTH_SECRET: "ci-placeholder-secret-do-not-use-in-prod"
+      AUTH_URL: "http://localhost:3000"
+      AUTH_TRUST_HOST: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        run: pnpm exec prisma generate
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Build
+        run: pnpm build

@@ -8,6 +8,7 @@ import { audit } from "@/lib/audit";
 import { adminUpdateUserSchema } from "@/lib/validators";
 import {
   setOrganizationStatus,
+  setOrganizationPlan,
   updateUserAsAdmin,
   type OrgStatus,
 } from "@/services/admin.service";
@@ -33,6 +34,28 @@ export async function setOrganizationStatusAction(
     entityType: "Organization",
     entityId: organizationId,
     metadata: { status },
+  });
+
+  revalidatePath("/admin/organizations");
+  return null;
+}
+
+export async function setOrganizationPlanAction(
+  organizationId: string,
+  planId: string,
+): Promise<AdminResult> {
+  const ctx = await requireSuperAdmin();
+
+  const ok = await setOrganizationPlan(organizationId, planId);
+  if (!ok) return { error: "Não foi possível atualizar o plano." };
+
+  await audit({
+    organizationId,
+    userId: ctx.userId,
+    action: "admin.org_plan_change",
+    entityType: "Organization",
+    entityId: organizationId,
+    metadata: { planId },
   });
 
   revalidatePath("/admin/organizations");

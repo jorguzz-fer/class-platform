@@ -5,6 +5,8 @@ import type {
   CourseOutline,
   CourseOutlineInput,
   GeneratedQuiz,
+  GeneratedQuestionSet,
+  QuestionsFromTextInput,
   LessonSummaryInput,
   TutorContext,
   TutorMessage,
@@ -134,6 +136,71 @@ export class AnthropicAIProvider implements AIProvider {
     });
 
     return this.extractJson<GeneratedQuiz>(message);
+  }
+
+  async generateQuestionsFromText(
+    input: QuestionsFromTextInput,
+  ): Promise<GeneratedQuestionSet> {
+    const schema = {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        questions: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              type: {
+                type: "string",
+                enum: ["SINGLE_CHOICE", "TRUE_FALSE", "MULTI_SELECT", "OPEN"],
+              },
+              statement: { type: "string" },
+              options: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    text: { type: "string" },
+                    isCorrect: { type: "boolean" },
+                  },
+                  required: ["text", "isCorrect"],
+                },
+              },
+            },
+            required: ["type", "statement", "options"],
+          },
+        },
+      },
+      required: ["questions"],
+    };
+
+    const message = await this.client.messages.create({
+      model: MODEL,
+      max_tokens: 8000,
+      thinking: { type: "adaptive" },
+      system: [
+        { type: "text", text: SYSTEM_INSTRUCTOR, cache_control: { type: "ephemeral" } },
+      ],
+      output_config: { format: { type: "json_schema", schema } },
+      messages: [
+        {
+          role: "user",
+          content:
+            "A partir do texto abaixo, monte questões de prova.\n" +
+            "Regras:\n" +
+            "- Se o texto JÁ contiver questões prontas (enunciado, alternativas A/B/C/D e gabarito tipo 'Gabarito: B'), EXTRAIA-as fielmente e marque como correta a alternativa do gabarito.\n" +
+            "- Se for apenas conteúdo, GERE questões de múltipla escolha cobrindo os pontos principais.\n" +
+            "- Tipos: SINGLE_CHOICE (1 correta), TRUE_FALSE (opções 'Verdadeiro'/'Falso'), MULTI_SELECT (várias corretas), OPEN (dissertativa, sem opções).\n" +
+            "- Em SINGLE_CHOICE e TRUE_FALSE marque exatamente uma correta; em MULTI_SELECT, uma ou mais; OPEN deve vir com options vazio.\n" +
+            "- Não invente gabarito quando ele estiver explícito no texto.\n\n" +
+            `Texto:\n${input.text}`,
+        },
+      ],
+    });
+
+    return this.extractJson<GeneratedQuestionSet>(message);
   }
 
   async summarizeLesson(input: LessonSummaryInput): Promise<string> {

@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { requireOrg } from "@/lib/tenant";
 import { assertPermission } from "@/lib/permissions";
 import { getOrgPlan } from "@/services/school.service";
+import { getAIProvider } from "@/lib/ai";
+import { extractTextFromUpload } from "@/services/document-extract.service";
 import {
   quizSettingsSchema,
   quizQuestionSchema,
@@ -20,6 +22,7 @@ import {
   setQuizPublished,
   deleteQuiz,
   addQuestion,
+  addQuestionsBulk,
   updateQuestion,
   deleteQuestion,
   reorderQuestions,
@@ -201,6 +204,101 @@ export async function reorderQuestionsAction(
   await reorderQuestions(ctx.organizationId, quizId, orderedIds);
   revalidateQuiz(courseId, moduleId);
   return null;
+}
+
+// ---- Geração por IA (Fase B) ---------------------------------------------
+
+/**
+ * Gera questões a partir de texto colado e as insere como rascunho na prova.
+ * A própria lista de questões serve de revisão — o dono ajusta/remove depois.
+ * Requer o recurso de IA habilitado no plano (hasAiFeatures).
+ */
+export async function generateQuestionsAction(
+  courseId: string,
+  moduleId: string,
+  quizId: string,
+  text: string,
+): Promise<ActionResult & { count?: number }> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "course:edit");
+
+  const plan = await getOrgPlan(ctx.organizationId);
+  if (!plan?.hasAiFeatures)
+    return { error: "Recurso de IA não disponível no seu plano." };
+
+  const clean = text.trim();
+  if (clean.length < 20)
+    return { error: "Cole um texto maior (mín. 20 caracteres)." };
+  if (clean.length > 50000)
+    return { error: "Texto muito longo (máx. 50.000 caracteres)." };
+
+  return generateAndInsert(ctx.organizationId, courseId, moduleId, quizId, clean);
+}
+
+/**
+ * Gera questões a partir de um ARQUIVO enviado (.docx/.pdf/.txt): extrai o
+ * texto no servidor e reaproveita a mesma pipeline de geração (Fase C).
+ */
+export async function generateFromFileAction(
+  courseId: string,
+  moduleId: string,
+  quizId: string,
+  formData: FormData,
+): Promise<ActionResult & { count?: number }> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "course:edit");
+
+  const plan = await getOrgPlan(ctx.organizationId);
+  if (!plan?.hasAiFeatures)
+    return { error: "Recurso de IA não disponível no seu plano." };
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0)
+    return { error: "Selecione um arquivo." };
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const extracted = await extractTextFromUpload(file.name, buffer);
+  if (!extracted.ok) return { error: extracted.error };
+
+  return generateAndInsert(ctx.organizationId, courseId, moduleId, quizId, extracted.text);
+}
+
+/**
+ * Núcleo compartilhado (texto colado / arquivo): chama a IA, valida cada
+ * questão pelo schema (descarta inválidas) e insere em lote como rascunho.
+ */
+async function generateAndInsert(
+  organizationId: string,
+  courseId: string,
+  moduleId: string,
+  quizId: string,
+  text: string,
+): Promise<ActionResult & { count?: number }> {
+  let generated;
+  try {
+    generated = await getAIProvider().generateQuestionsFromText({ text });
+  } catch {
+    return { error: "Falha ao gerar as questões. Tente novamente." };
+  }
+
+  const valid: QuizQuestionInput[] = [];
+  for (const q of generated.questions) {
+    const parsed = quizQuestionSchema.safeParse({
+      type: q.type,
+      statement: q.statement,
+      points: 1,
+      options: q.options,
+    });
+    if (parsed.success) valid.push(parsed.data);
+  }
+  if (valid.length === 0)
+    return { error: "Não foi possível extrair questões válidas." };
+
+  const created = await addQuestionsBulk(organizationId, quizId, valid);
+  if (created == null) return { error: "Prova não encontrada." };
+
+  revalidateQuiz(courseId, moduleId);
+  return { count: created };
 }
 
 // ---- Aluno: enviar prova --------------------------------------------------

@@ -200,6 +200,46 @@ export async function updateQuestion(
   return true;
 }
 
+/**
+ * Insere várias questões de uma vez (ex.: geradas por IA a partir de texto).
+ * Cada item já deve estar validado pelo schema. Retorna quantas foram criadas.
+ */
+export async function addQuestionsBulk(
+  organizationId: string,
+  quizId: string,
+  inputs: QuizQuestionInput[],
+): Promise<number | null> {
+  const quiz = await getQuizInOrg(organizationId, quizId);
+  if (!quiz) return null;
+
+  let orderIndex = await db.quizQuestion.count({ where: { quizId } });
+  let created = 0;
+  for (const input of inputs) {
+    await db.quizQuestion.create({
+      data: {
+        organizationId,
+        quizId,
+        type: input.type,
+        statement: input.statement,
+        points: input.points,
+        orderIndex: orderIndex++,
+        options:
+          input.type === "OPEN"
+            ? undefined
+            : {
+                create: input.options.map((o, i) => ({
+                  text: o.text,
+                  isCorrect: o.isCorrect,
+                  orderIndex: i,
+                })),
+              },
+      },
+    });
+    created++;
+  }
+  return created;
+}
+
 export async function deleteQuestion(organizationId: string, questionId: string) {
   const result = await db.quizQuestion.deleteMany({
     where: { id: questionId, organizationId },
