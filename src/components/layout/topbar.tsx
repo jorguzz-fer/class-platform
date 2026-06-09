@@ -4,13 +4,22 @@ import { logoutAction } from "@/lib/actions/auth-actions";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { BrandMark, type Brand } from "@/components/layout/brand-mark";
 
-export function Topbar({ name, email }: { name: string; email: string }) {
+export function Topbar({
+  name,
+  email,
+  brand,
+}: {
+  name: string;
+  email: string;
+  brand: Brand;
+}) {
   return (
     <header className="flex h-16 items-center justify-between gap-2 border-b bg-card px-4 sm:px-6">
       <div className="flex items-center gap-2">
-        <MobileNav />
-        <span className="font-semibold md:hidden">ClassOS</span>
+        <MobileNav brand={brand} />
+        <BrandMark brand={brand} className="md:hidden" />
       </div>
       <div className="ml-auto flex items-center gap-2 sm:gap-4">
         <div className="hidden text-right sm:block">

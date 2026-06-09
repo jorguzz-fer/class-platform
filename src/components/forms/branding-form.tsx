@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
+import { GraduationCap } from "lucide-react";
 
 import { updateBrandingAction, type SettingsState } from "@/lib/actions/school-actions";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,10 @@ export function BrandingForm({ defaults }: { defaults: Defaults }) {
     updateBrandingAction,
     null,
   );
+  // Preview ao vivo do logo (atualiza enquanto digita a URL).
+  const [logoUrl, setLogoUrl] = useState(defaults.logoUrl ?? "");
+  const [logoBroken, setLogoBroken] = useState(false);
+  const showLogo = /^https?:\/\//i.test(logoUrl.trim()) && !logoBroken;
 
   useEffect(() => {
     if (state?.ok) toast.success("Marca atualizada.");
@@ -59,7 +64,38 @@ export function BrandingForm({ defaults }: { defaults: Defaults }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="logoUrl">URL do logo</Label>
-          <Input id="logoUrl" name="logoUrl" type="url" defaultValue={defaults.logoUrl ?? ""} />
+          <div className="flex items-center gap-3">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
+              {showLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logoUrl.trim()}
+                  alt="Pré-visualização do logo"
+                  className="h-full w-full object-cover"
+                  onError={() => setLogoBroken(true)}
+                />
+              ) : (
+                <GraduationCap className="h-5 w-5 text-muted-foreground" />
+              )}
+            </span>
+            <Input
+              id="logoUrl"
+              name="logoUrl"
+              type="url"
+              placeholder="https://..."
+              defaultValue={defaults.logoUrl ?? ""}
+              onChange={(e) => {
+                setLogoBroken(false);
+                setLogoUrl(e.target.value);
+              }}
+              className="flex-1"
+            />
+          </div>
+          {logoUrl.trim() && !/^https?:\/\//i.test(logoUrl.trim()) && (
+            <p className="text-xs text-muted-foreground">
+              A URL precisa começar com https:// (ex.: https://site.com/logo.png).
+            </p>
+          )}
           <Field messages={state?.fieldErrors?.logoUrl} />
         </div>
         <div className="flex flex-col gap-2">

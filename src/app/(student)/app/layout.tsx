@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { GraduationCap, BookOpen, Award, User, Users } from "lucide-react";
+import { BookOpen, Award, User, Users } from "lucide-react";
 
 import { requireActiveOrg } from "@/lib/tenant";
+import { getSchool } from "@/services/school.service";
 import { logoutAction } from "@/lib/actions/auth-actions";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
+import { BrandMark } from "@/components/layout/brand-mark";
 
 // Área do aluno: sempre dinâmica (depende de sessão/banco).
 export const dynamic = "force-dynamic";
@@ -15,14 +17,15 @@ export default async function StudentLayout({
   children: React.ReactNode;
 }) {
   const ctx = await requireActiveOrg();
+  const school = await getSchool(ctx.organizationId);
+  const brand = { name: school?.name ?? "Meus cursos", logoUrl: school?.logoUrl ?? null };
 
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b bg-card">
         <div className="container flex h-16 items-center justify-between">
-          <Link href="/app" className="flex items-center gap-2 font-semibold">
-            <GraduationCap className="h-6 w-6" />
-            <span>Meus cursos</span>
+          <Link href="/app">
+            <BrandMark brand={brand} />
           </Link>
           <nav className="flex items-center gap-1">
             <Link

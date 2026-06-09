@@ -2,19 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GraduationCap } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { dashboardNav } from "@/components/layout/nav-items";
+import { BrandMark, type Brand } from "@/components/layout/brand-mark";
 
-export function Sidebar() {
+export function Sidebar({ brand }: { brand: Brand }) {
   const pathname = usePathname();
 
   return (
     <aside className="hidden w-64 shrink-0 border-r bg-card md:flex md:flex-col">
-      <div className="flex h-16 items-center gap-2 border-b px-6 font-semibold">
-        <GraduationCap className="h-6 w-6" />
-        <span>ClassOS</span>
+      <div className="flex h-16 items-center border-b px-6">
+        <BrandMark brand={brand} />
       </div>
       <nav className="flex flex-1 flex-col gap-1 p-3">
         {dashboardNav.map((item) => {
