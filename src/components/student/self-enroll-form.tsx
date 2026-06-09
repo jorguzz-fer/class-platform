@@ -10,6 +10,7 @@ import {
 } from "@/lib/actions/self-enroll-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 
 function SubmitButton() {
@@ -57,10 +58,9 @@ export function SelfEnrollForm({
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="password">Crie uma senha</Label>
-        <Input
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
           autoComplete="new-password"
           required
         />
