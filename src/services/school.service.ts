@@ -44,6 +44,7 @@ export async function updateBranding(
       description: input.description || null,
       logoUrl: input.logoUrl || null,
       faviconUrl: input.faviconUrl || null,
+      heroImageUrl: input.heroImageUrl || null,
       primaryColor: input.primaryColor || null,
       secondaryColor: input.secondaryColor || null,
       backgroundColor: input.backgroundColor || null,

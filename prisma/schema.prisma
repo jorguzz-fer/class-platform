@@ -114,6 +114,7 @@ model School {
   description     String?
   logoUrl         String?
   faviconUrl      String?
+  heroImageUrl    String?
   primaryColor    String?
   secondaryColor  String?
   backgroundColor String?

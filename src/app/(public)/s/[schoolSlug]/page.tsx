@@ -97,7 +97,16 @@ export default async function PublicSchoolPage({
           {/* HERO — curso em destaque */}
           <section className="relative isolate overflow-hidden border-b">
             <div className="absolute inset-0 -z-10">
-              <CourseThumb course={featured} className="scale-105 blur-[2px]" />
+              {school.heroImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={school.heroImageUrl}
+                  alt=""
+                  className="h-full w-full scale-105 object-cover blur-[2px]"
+                />
+              ) : (
+                <CourseThumb course={featured} className="scale-105 blur-[2px]" />
+              )}
               {/* Sobreposição para legibilidade do texto em ambos os temas. */}
               <div className="absolute inset-0 bg-gradient-to-t from-background via-background/85 to-background/40" />
               <div className="absolute inset-0 bg-gradient-to-r from-background/90 to-transparent" />

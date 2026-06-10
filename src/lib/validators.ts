@@ -258,6 +258,7 @@ export const schoolBrandingSchema = z.object({
   description: z.string().trim().max(2000).optional().or(z.literal("")),
   logoUrl: optionalUrl,
   faviconUrl: optionalUrl,
+  heroImageUrl: optionalUrl,
   primaryColor: hexColor,
   secondaryColor: hexColor,
   backgroundColor: hexColor,

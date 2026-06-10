@@ -30,6 +30,7 @@ type Defaults = {
   description?: string | null;
   logoUrl?: string | null;
   faviconUrl?: string | null;
+  heroImageUrl?: string | null;
   primaryColor?: string | null;
   secondaryColor?: string | null;
   backgroundColor?: string | null;
@@ -44,6 +45,36 @@ export function BrandingForm({ defaults }: { defaults: Defaults }) {
   const [logoUrl, setLogoUrl] = useState(defaults.logoUrl ?? "");
   const [logoBroken, setLogoBroken] = useState(false);
   const showLogo = /^https?:\/\//i.test(logoUrl.trim()) && !logoBroken;
+
+  // Imagem de capa (Hero) do catálogo: upload para o storage + preview.
+  const [heroUrl, setHeroUrl] = useState(defaults.heroImageUrl ?? "");
+  const [heroUploading, setHeroUploading] = useState(false);
+
+  async function uploadHero(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Envie uma imagem (PNG, JPG ou WEBP).");
+      return;
+    }
+    setHeroUploading(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/uploads", { method: "POST", body });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Falha no upload.");
+        return;
+      }
+      setHeroUrl(data.url);
+      toast.success("Imagem de capa enviada.");
+    } catch {
+      toast.error("Falha no upload. Tente novamente.");
+    } finally {
+      setHeroUploading(false);
+    }
+  }
 
   useEffect(() => {
     if (state?.ok) toast.success("Marca atualizada.");
@@ -114,6 +145,49 @@ export function BrandingForm({ defaults }: { defaults: Defaults }) {
           <Field messages={state?.fieldErrors?.faviconUrl} />
         </div>
       </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="heroImageUrl">Imagem de capa do catálogo (Hero)</Label>
+        <div className="flex items-start gap-3">
+          <div className="relative aspect-video w-40 shrink-0 overflow-hidden rounded-md border bg-muted">
+            {/^https?:\/\//i.test(heroUrl.trim()) ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={heroUrl.trim()} alt="Pré-visualização da capa" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                sem imagem
+              </div>
+            )}
+          </div>
+          <div className="flex flex-1 flex-col gap-2">
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              onChange={uploadHero}
+              disabled={heroUploading}
+            />
+            <Input
+              id="heroImageUrl"
+              name="heroImageUrl"
+              type="url"
+              placeholder="https://… ou envie uma imagem"
+              value={heroUrl}
+              onChange={(e) => setHeroUrl(e.target.value)}
+            />
+            {heroUploading && (
+              <p className="text-xs text-muted-foreground">Enviando…</p>
+            )}
+            <Field messages={state?.fieldErrors?.heroImageUrl} />
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Aparece como fundo do banner no topo do catálogo público. Recomendado
+          paisagem 16:9 (ex.: 1920×1080). Sem imagem, usa a capa do curso em
+          destaque.
+        </p>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-3">
         {(["primaryColor", "secondaryColor", "backgroundColor"] as const).map((field) => (
           <div key={field} className="flex flex-col gap-2">
