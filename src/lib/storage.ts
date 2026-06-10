@@ -60,10 +60,20 @@ function createR2Provider(): StorageProvider | null {
     isConfigured: () => true,
 
     async put({ key, body, contentType }) {
-      const res = await client.fetch(objectUrl(key), {
+      const url = objectUrl(key);
+      // O R2 exige Content-Length e rejeita uploads em chunked (411). Se
+      // deixássemos o aws4fetch montar o Request, o corpo viraria stream e o
+      // Content-Length se perderia. Então assinamos a requisição e fazemos o
+      // fetch passando o ArrayBuffer direto — o runtime define o Content-Length.
+      const signed = await client.sign(url, {
         method: "PUT",
-        body,
         headers: { "content-type": contentType },
+        body,
+      });
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: signed.headers,
+        body,
       });
       if (!res.ok) {
         const detail = await res.text().catch(() => "");
