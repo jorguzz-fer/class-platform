@@ -69,6 +69,47 @@ const COURSE_DOC_SCHEMA = {
   required: ["title", "subtitle", "description", "modules"],
 };
 
+// Igual ao schema de documento, mas cada aula referencia a lâmina de origem do
+// PDF (slidePage), para mostrar o slide original na tela da aula.
+const COURSE_PDF_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    title: { type: "string" },
+    subtitle: { type: "string" },
+    description: { type: "string" },
+    modules: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          title: { type: "string" },
+          description: { type: "string" },
+          lessons: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                title: { type: "string" },
+                content: { type: "string" },
+                slidePage: {
+                  type: "integer",
+                  description: "Número da lâmina/página do PDF (1-based) que originou esta aula.",
+                },
+              },
+              required: ["title", "content", "slidePage"],
+            },
+          },
+        },
+        required: ["title", "description", "lessons"],
+      },
+    },
+  },
+  required: ["title", "subtitle", "description", "modules"],
+};
+
 // Instrução comum para organizar material em curso (texto ou PDF).
 function courseFromMaterialInstruction(level?: string, audience?: string): string {
   return (
@@ -189,7 +230,7 @@ export class AnthropicAIProvider implements AIProvider {
       system: [
         { type: "text", text: SYSTEM_INSTRUCTOR, cache_control: { type: "ephemeral" } },
       ],
-      output_config: { format: { type: "json_schema", schema: COURSE_DOC_SCHEMA } },
+      output_config: { format: { type: "json_schema", schema: COURSE_PDF_SCHEMA } },
       messages: [
         {
           role: "user",
@@ -202,7 +243,13 @@ export class AnthropicAIProvider implements AIProvider {
                 data: input.pdfBase64,
               },
             },
-            { type: "text", text: courseFromMaterialInstruction(input.level, input.audience) },
+            {
+              type: "text",
+              text:
+                courseFromMaterialInstruction(input.level, input.audience) +
+                " Para CADA aula, informe em slidePage o número da lâmina/página " +
+                "do PDF (1-based) de onde o conteúdo foi tirado.",
+            },
           ],
         },
       ],

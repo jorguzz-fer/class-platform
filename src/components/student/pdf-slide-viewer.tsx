@@ -17,7 +17,14 @@ import { Card, CardContent } from "@/components/ui/card";
  * importado dinamicamente (só no cliente) e o worker vem da CDN, casando com a
  * versão instalada.
  */
-export function PdfSlideViewer({ url }: { url: string }) {
+export function PdfSlideViewer({
+  url,
+  fixedPage,
+}: {
+  url: string;
+  /** Quando definido, mostra só esta lâmina (1-based), sem navegação. */
+  fixedPage?: number;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const docRef = useRef<PDFDocumentProxy | null>(null);
   const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
@@ -46,7 +53,9 @@ export function PdfSlideViewer({ url }: { url: string }) {
         }
         docRef.current = doc;
         setNumPages(doc.numPages);
-        setPage(1);
+        setPage(
+          fixedPage ? Math.min(Math.max(1, fixedPage), doc.numPages) : 1,
+        );
       } catch {
         if (!cancelled) setError(true);
       } finally {
@@ -59,7 +68,7 @@ export function PdfSlideViewer({ url }: { url: string }) {
       loadingTaskRef.current?.destroy();
       docRef.current = null;
     };
-  }, [url]);
+  }, [url, fixedPage]);
 
   // Renderiza a lâmina atual sempre que muda a página (ou o doc carrega).
   useEffect(() => {
@@ -105,15 +114,16 @@ export function PdfSlideViewer({ url }: { url: string }) {
     [numPages],
   );
 
-  // Navegação por teclado (setas).
+  // Navegação por teclado (setas). Desativada no modo de lâmina única.
   useEffect(() => {
+    if (fixedPage) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") go(1);
       else if (e.key === "ArrowLeft") go(-1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [go]);
+  }, [go, fixedPage]);
 
   if (error) {
     return (
@@ -146,6 +156,7 @@ export function PdfSlideViewer({ url }: { url: string }) {
           <canvas ref={canvasRef} className="max-w-full" />
         </div>
 
+        {fixedPage ? null : (
         <div className="flex items-center justify-between gap-2">
           <Button
             variant="outline"
@@ -171,6 +182,7 @@ export function PdfSlideViewer({ url }: { url: string }) {
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
+        )}
       </CardContent>
     </Card>
   );

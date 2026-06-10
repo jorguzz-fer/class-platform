@@ -28,6 +28,19 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+/** Extrai a referência da lâmina (PDF + página) de um videoUrl "<pdf>#page=N". */
+function parseSlideRef(
+  videoUrl: string | null,
+): { url: string; page: number } | null {
+  if (!videoUrl) return null;
+  const idx = videoUrl.indexOf("#page=");
+  if (idx === -1) return null;
+  const url = videoUrl.slice(0, idx);
+  const page = parseInt(videoUrl.slice(idx + 6), 10);
+  if (!url.toLowerCase().includes(".pdf") || !Number.isFinite(page)) return null;
+  return { url, page };
+}
+
 /** Renderiza o conteúdo da aula conforme o tipo. */
 function LessonContent({
   contentType,
@@ -68,13 +81,28 @@ function LessonContent({
     return <PdfSlideViewer url={videoUrl} />;
   }
 
-  if (contentType === "TEXT" && textContent) {
+  if (contentType === "TEXT") {
+    // Aula de texto pode referenciar a lâmina original do PDF que a gerou
+    // (videoUrl = "<pdf>#page=N"): mostramos o slide acima do texto.
+    const slide = parseSlideRef(videoUrl);
     return (
-      <Card>
-        <CardContent className="prose prose-sm max-w-none whitespace-pre-wrap py-6">
-          {textContent}
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-4">
+        {slide && (
+          <div>
+            <p className="mb-2 text-sm font-medium text-muted-foreground">
+              Lâmina original
+            </p>
+            <PdfSlideViewer url={slide.url} fixedPage={slide.page} />
+          </div>
+        )}
+        {textContent && (
+          <Card>
+            <CardContent className="prose prose-sm max-w-none whitespace-pre-wrap py-6">
+              {textContent}
+            </CardContent>
+          </Card>
+        )}
+      </div>
     );
   }
 

@@ -1,9 +1,12 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireOrg } from "@/lib/tenant";
+import { storage } from "@/lib/storage";
 import { assertPermission } from "@/lib/permissions";
 import { audit } from "@/lib/audit";
 import { getAIProvider } from "@/lib/ai";
@@ -115,7 +118,8 @@ export async function generateCourseFromDocumentAction(
     return { error: "Envie um arquivo PDF, DOCX ou TXT." };
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
   const ext = file.name.toLowerCase().split(".").pop() ?? "";
   const level = (formData.get("level") as string) || undefined;
   const audience = (formData.get("audience") as string) || undefined;
@@ -148,6 +152,22 @@ export async function generateCourseFromDocumentAction(
     return { error: "Não foi possível organizar o documento. Tente novamente." };
   }
 
+  // Para PDF: guarda o arquivo no storage para mostrar a lâmina original em cada
+  // aula (best-effort — sem storage, segue só com o texto).
+  let slidesPdfUrl: string | null = null;
+  if (ext === "pdf" && storage.isConfigured()) {
+    try {
+      const result = await storage.put({
+        key: `uploads/${ctx.organizationId}/${randomUUID()}.pdf`,
+        body: arrayBuffer,
+        contentType: "application/pdf",
+      });
+      slidesPdfUrl = result.url;
+    } catch {
+      // segue sem os slides
+    }
+  }
+
   const course = await createCourse(ctx.organizationId, ctx.userId, {
     title: outline.title,
     subtitle: outline.subtitle,
@@ -165,10 +185,17 @@ export async function generateCourseFromDocumentAction(
     });
     if (!created) continue;
     for (const lesson of mod.lessons) {
+      // Aula de texto que também aponta para a lâmina original do PDF
+      // (videoUrl = "<pdf>#page=N"), renderizada na tela da aula.
+      const slideRef =
+        slidesPdfUrl && lesson.slidePage
+          ? `${slidesPdfUrl}#page=${lesson.slidePage}`
+          : undefined;
       await createLesson(ctx.organizationId, created.id, {
         title: lesson.title,
         contentType: "TEXT",
         textContent: lesson.content,
+        videoUrl: slideRef,
         isPreview: false,
         isRequired: true,
       });

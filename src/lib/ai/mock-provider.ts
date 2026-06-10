@@ -116,6 +116,7 @@ export class MockAIProvider implements AIProvider {
               title: "Aula 1",
               content:
                 "Sem a IA real configurada, não é possível transcrever o PDF.",
+              slidePage: 1,
             },
           ],
         },

@@ -38,6 +38,8 @@ export interface DocumentCourseInput {
 export interface GeneratedDocLesson {
   title: string;
   content: string;
+  /** Página/lâmina de origem no PDF (1-based), quando gerado de um PDF. */
+  slidePage?: number;
 }
 
 export interface GeneratedDocModule {
