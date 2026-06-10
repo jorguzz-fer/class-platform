@@ -62,7 +62,9 @@ export async function generateCourseOutlineAction(
     title: outline.title,
     subtitle: outline.subtitle,
     level: "ALL_LEVELS",
-    visibility: "PRIVATE",
+    // Pública por padrão: ao PUBLICAR, já aparece no catálogo. Segue DRAFT até
+    // o instrutor publicar, então nada fica visível antes da revisão.
+    visibility: "PUBLIC",
   });
 
   for (const mod of outline.modules) {
@@ -151,7 +153,9 @@ export async function generateCourseFromDocumentAction(
     subtitle: outline.subtitle,
     description: outline.description || undefined,
     level: "ALL_LEVELS",
-    visibility: "PRIVATE",
+    // Pública por padrão: ao PUBLICAR, já aparece no catálogo. Segue DRAFT até
+    // o instrutor publicar, então nada fica visível antes da revisão.
+    visibility: "PUBLIC",
   });
 
   for (const mod of outline.modules) {

@@ -104,12 +104,10 @@ export default async function CoursesPage() {
                     <td className="px-4 py-3">
                       <ShareCourseLinkCompact
                         subdomain={subdomain}
+                        courseId={course.id}
                         courseSlug={course.slug}
-                        shareable={
-                          course.status === "PUBLISHED" &&
-                          (course.visibility === "PUBLIC" ||
-                            course.visibility === "UNLISTED")
-                        }
+                        status={course.status}
+                        visibility={course.visibility}
                       />
                     </td>
                   </tr>
