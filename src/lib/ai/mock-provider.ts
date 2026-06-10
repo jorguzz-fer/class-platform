@@ -2,6 +2,8 @@ import type {
   AIProvider,
   CourseOutline,
   CourseOutlineInput,
+  DocumentCourseInput,
+  DocumentCourseOutline,
   GeneratedQuiz,
   GeneratedQuestionSet,
   GeneratedQuestionDraft,
@@ -49,6 +51,43 @@ export class MockAIProvider implements AIProvider {
             { title: "Otimização", description: "Desempenho e qualidade." },
             { title: "Projeto final", description: "Consolidando o aprendizado." },
           ],
+        },
+      ],
+    };
+  }
+
+  async generateCourseFromDocument(
+    input: DocumentCourseInput,
+  ): Promise<DocumentCourseOutline> {
+    // Mock: quebra o texto em blocos e os distribui como aulas. Sem API key, o
+    // resultado é simples — serve para testar o fluxo, não para produção.
+    const text = input.content.trim();
+    const paragraphs = text
+      .split(/\n{2,}/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+    const chunks = paragraphs.length > 0 ? paragraphs : [text];
+
+    // Agrupa em até 4 aulas por módulo.
+    const perLesson = Math.max(1, Math.ceil(chunks.length / 6));
+    const lessons = [];
+    for (let i = 0; i < chunks.length; i += perLesson) {
+      const slice = chunks.slice(i, i + perLesson);
+      lessons.push({
+        title: `Aula ${lessons.length + 1}`,
+        content: slice.join("\n\n"),
+      });
+    }
+
+    return {
+      title: "Curso a partir do documento",
+      subtitle: "Conteúdo organizado automaticamente (rascunho)",
+      description: text.slice(0, 200),
+      modules: [
+        {
+          title: "Conteúdo do documento",
+          description: "Aulas geradas a partir do material enviado.",
+          lessons: lessons.length > 0 ? lessons : [{ title: "Aula 1", content: text }],
         },
       ],
     };

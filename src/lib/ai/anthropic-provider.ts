@@ -4,6 +4,8 @@ import type {
   AIProvider,
   CourseOutline,
   CourseOutlineInput,
+  DocumentCourseInput,
+  DocumentCourseOutline,
   GeneratedQuiz,
   GeneratedQuestionSet,
   QuestionsFromTextInput,
@@ -93,6 +95,76 @@ export class AnthropicAIProvider implements AIProvider {
     });
 
     return this.extractJson<CourseOutline>(message);
+  }
+
+  async generateCourseFromDocument(
+    input: DocumentCourseInput,
+  ): Promise<DocumentCourseOutline> {
+    const schema = {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        title: { type: "string" },
+        subtitle: { type: "string" },
+        description: { type: "string" },
+        modules: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              title: { type: "string" },
+              description: { type: "string" },
+              lessons: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    title: { type: "string" },
+                    content: { type: "string" },
+                  },
+                  required: ["title", "content"],
+                },
+              },
+            },
+            required: ["title", "description", "lessons"],
+          },
+        },
+      },
+      required: ["title", "subtitle", "description", "modules"],
+    };
+
+    // Limita o texto enviado (contexto/custo). 80k caracteres cobrem documentos
+    // longos sem estourar o orçamento de tokens.
+    const content = input.content.slice(0, 80000);
+
+    const message = await this.client.messages.create({
+      model: MODEL,
+      max_tokens: 16000,
+      thinking: { type: "adaptive" },
+      system: [
+        { type: "text", text: SYSTEM_INSTRUCTOR, cache_control: { type: "ephemeral" } },
+      ],
+      output_config: { format: { type: "json_schema", schema } },
+      messages: [
+        {
+          role: "user",
+          content:
+            "Organize o conteúdo do documento abaixo em um curso estruturado " +
+            "(título, subtítulo, descrição e módulos com aulas). Cada aula deve " +
+            "ter um título e o CONTEÚDO em texto, redigido a partir do material " +
+            "(organize e melhore a didática, mas NÃO invente fatos que não " +
+            "estejam no documento). Divida em módulos coerentes, cada um com 2 a " +
+            "6 aulas." +
+            (input.level ? ` Nível: ${input.level}.` : "") +
+            (input.audience ? ` Público: ${input.audience}.` : "") +
+            `\n\nDocumento:\n${content}`,
+        },
+      ],
+    });
+
+    return this.extractJson<DocumentCourseOutline>(message);
   }
 
   async generateQuiz(input: LessonSummaryInput): Promise<GeneratedQuiz> {

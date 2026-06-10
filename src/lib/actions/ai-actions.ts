@@ -12,6 +12,7 @@ import { getOrgPlan } from "@/services/school.service";
 import { createCourse } from "@/services/course.service";
 import { createModule } from "@/services/module.service";
 import { createLesson, getLesson } from "@/services/lesson.service";
+import { extractTextFromUpload } from "@/services/document-extract.service";
 
 export type AIResult = { error?: string; fieldErrors?: Record<string, string[]> } | null;
 
@@ -85,6 +86,83 @@ export async function generateCourseOutlineAction(
     organizationId: ctx.organizationId,
     userId: ctx.userId,
     action: "ai.generate_course",
+    entityType: "Course",
+    entityId: course.id,
+  });
+
+  revalidatePath("/dashboard/courses");
+  redirect(`/dashboard/courses/${course.id}/modules`);
+}
+
+/**
+ * Sobe um documento (PDF/DOCX/TXT) e deixa a IA organizar TODO o conteúdo em
+ * um curso DRAFT (módulos + aulas de texto), para o instrutor revisar.
+ */
+export async function generateCourseFromDocumentAction(
+  _prev: AIResult,
+  formData: FormData,
+): Promise<AIResult> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "course:create");
+
+  const planError = await assertAIPlan(ctx.organizationId);
+  if (planError) return { error: planError };
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Envie um arquivo PDF, DOCX ou TXT." };
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const extracted = await extractTextFromUpload(file.name, buffer);
+  if (!extracted.ok) return { error: extracted.error };
+  if (extracted.text.trim().length < 50) {
+    return { error: "Não foi possível ler conteúdo suficiente do documento." };
+  }
+
+  const level = (formData.get("level") as string) || undefined;
+  const audience = (formData.get("audience") as string) || undefined;
+
+  let outline;
+  try {
+    outline = await getAIProvider().generateCourseFromDocument({
+      content: extracted.text,
+      level,
+      audience,
+    });
+  } catch {
+    return { error: "Não foi possível organizar o documento. Tente novamente." };
+  }
+
+  const course = await createCourse(ctx.organizationId, ctx.userId, {
+    title: outline.title,
+    subtitle: outline.subtitle,
+    description: outline.description || undefined,
+    level: "ALL_LEVELS",
+    visibility: "PRIVATE",
+  });
+
+  for (const mod of outline.modules) {
+    const created = await createModule(ctx.organizationId, course.id, {
+      title: mod.title,
+      description: mod.description,
+    });
+    if (!created) continue;
+    for (const lesson of mod.lessons) {
+      await createLesson(ctx.organizationId, created.id, {
+        title: lesson.title,
+        contentType: "TEXT",
+        textContent: lesson.content,
+        isPreview: false,
+        isRequired: true,
+      });
+    }
+  }
+
+  await audit({
+    organizationId: ctx.organizationId,
+    userId: ctx.userId,
+    action: "ai.generate_course_from_document",
     entityType: "Course",
     entityId: course.id,
   });

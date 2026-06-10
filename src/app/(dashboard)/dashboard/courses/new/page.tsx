@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, Sparkles, FileUp } from "lucide-react";
 import { redirect } from "next/navigation";
 
 import { requireOrg } from "@/lib/tenant";
@@ -8,6 +8,7 @@ import { getOrgPlan } from "@/services/school.service";
 import { createCourseAction } from "@/lib/actions/course-actions";
 import { CourseForm } from "@/components/forms/course-form";
 import { AIOutlineForm } from "@/components/forms/ai-outline-form";
+import { AIDocumentForm } from "@/components/forms/ai-document-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function NewCoursePage() {
@@ -43,6 +44,20 @@ export default async function NewCoursePage() {
           </CardHeader>
           <CardContent>
             <AIOutlineForm />
+          </CardContent>
+        </Card>
+      )}
+
+      {aiEnabled && (
+        <Card className="border-primary/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileUp className="h-4 w-4" />
+              Criar a partir de um documento
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AIDocumentForm />
           </CardContent>
         </Card>
       )}

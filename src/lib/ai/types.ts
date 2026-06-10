@@ -26,6 +26,33 @@ export interface CourseOutline {
   modules: GeneratedModule[];
 }
 
+// Geração de curso a partir de um documento (PDF/DOCX/TXT). Diferente do
+// outline por tema, aqui cada aula carrega o CONTEÚDO em texto, organizado a
+// partir do documento — vira o corpo da aula (textContent).
+export interface DocumentCourseInput {
+  content: string;
+  level?: string;
+  audience?: string;
+}
+
+export interface GeneratedDocLesson {
+  title: string;
+  content: string;
+}
+
+export interface GeneratedDocModule {
+  title: string;
+  description: string;
+  lessons: GeneratedDocLesson[];
+}
+
+export interface DocumentCourseOutline {
+  title: string;
+  subtitle: string;
+  description: string;
+  modules: GeneratedDocModule[];
+}
+
 export interface QuizQuestion {
   question: string;
   options: string[];
@@ -89,6 +116,10 @@ export interface AIProvider {
   readonly name: string;
 
   generateCourseOutline(input: CourseOutlineInput): Promise<CourseOutline>;
+  /** Organiza o conteúdo de um documento em curso + módulos + aulas. */
+  generateCourseFromDocument(
+    input: DocumentCourseInput,
+  ): Promise<DocumentCourseOutline>;
   generateQuiz(input: LessonSummaryInput): Promise<GeneratedQuiz>;
   /** Monta questões de prova a partir de texto colado (Fase B). */
   generateQuestionsFromText(
