@@ -6,6 +6,7 @@ import type {
   CourseOutlineInput,
   DocumentCourseInput,
   DocumentCourseOutline,
+  PdfCourseInput,
   GeneratedQuiz,
   GeneratedQuestionSet,
   QuestionsFromTextInput,
@@ -30,6 +31,57 @@ const MODEL = "claude-opus-4-8";
 const SYSTEM_INSTRUCTOR =
   "Você é um especialista em design instrucional para cursos online em português do Brasil. " +
   "Gere conteúdo claro, prático e bem estruturado.";
+
+// Schema do curso gerado a partir de documento/PDF (cada aula carrega o conteúdo
+// em texto). Reutilizado pelas gerações por texto e por PDF.
+const COURSE_DOC_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    title: { type: "string" },
+    subtitle: { type: "string" },
+    description: { type: "string" },
+    modules: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          title: { type: "string" },
+          description: { type: "string" },
+          lessons: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                title: { type: "string" },
+                content: { type: "string" },
+              },
+              required: ["title", "content"],
+            },
+          },
+        },
+        required: ["title", "description", "lessons"],
+      },
+    },
+  },
+  required: ["title", "subtitle", "description", "modules"],
+};
+
+// Instrução comum para organizar material em curso (texto ou PDF).
+function courseFromMaterialInstruction(level?: string, audience?: string): string {
+  return (
+    "Organize o material em um curso estruturado (título, subtítulo, descrição " +
+    "e módulos com aulas). Cada aula deve ter um título e o CONTEÚDO em texto, " +
+    "redigido a partir do material (organize e melhore a didática, mas NÃO " +
+    "invente fatos que não estejam no material). Quando o material for um PDF de " +
+    "slides/imagens, TRANSCREVA o texto das lâminas. Divida em módulos coerentes, " +
+    "cada um com 2 a 6 aulas." +
+    (level ? ` Nível: ${level}.` : "") +
+    (audience ? ` Público: ${audience}.` : "")
+  );
+}
 
 export class AnthropicAIProvider implements AIProvider {
   readonly name = "anthropic";
@@ -100,41 +152,6 @@ export class AnthropicAIProvider implements AIProvider {
   async generateCourseFromDocument(
     input: DocumentCourseInput,
   ): Promise<DocumentCourseOutline> {
-    const schema = {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        title: { type: "string" },
-        subtitle: { type: "string" },
-        description: { type: "string" },
-        modules: {
-          type: "array",
-          items: {
-            type: "object",
-            additionalProperties: false,
-            properties: {
-              title: { type: "string" },
-              description: { type: "string" },
-              lessons: {
-                type: "array",
-                items: {
-                  type: "object",
-                  additionalProperties: false,
-                  properties: {
-                    title: { type: "string" },
-                    content: { type: "string" },
-                  },
-                  required: ["title", "content"],
-                },
-              },
-            },
-            required: ["title", "description", "lessons"],
-          },
-        },
-      },
-      required: ["title", "subtitle", "description", "modules"],
-    };
-
     // Limita o texto enviado (contexto/custo). 80k caracteres cobrem documentos
     // longos sem estourar o orçamento de tokens.
     const content = input.content.slice(0, 80000);
@@ -146,20 +163,47 @@ export class AnthropicAIProvider implements AIProvider {
       system: [
         { type: "text", text: SYSTEM_INSTRUCTOR, cache_control: { type: "ephemeral" } },
       ],
-      output_config: { format: { type: "json_schema", schema } },
+      output_config: { format: { type: "json_schema", schema: COURSE_DOC_SCHEMA } },
       messages: [
         {
           role: "user",
           content:
-            "Organize o conteúdo do documento abaixo em um curso estruturado " +
-            "(título, subtítulo, descrição e módulos com aulas). Cada aula deve " +
-            "ter um título e o CONTEÚDO em texto, redigido a partir do material " +
-            "(organize e melhore a didática, mas NÃO invente fatos que não " +
-            "estejam no documento). Divida em módulos coerentes, cada um com 2 a " +
-            "6 aulas." +
-            (input.level ? ` Nível: ${input.level}.` : "") +
-            (input.audience ? ` Público: ${input.audience}.` : "") +
+            courseFromMaterialInstruction(input.level, input.audience) +
             `\n\nDocumento:\n${content}`,
+        },
+      ],
+    });
+
+    return this.extractJson<DocumentCourseOutline>(message);
+  }
+
+  async generateCourseFromPdf(
+    input: PdfCourseInput,
+  ): Promise<DocumentCourseOutline> {
+    // O Claude lê o PDF nativamente (visão): cobre PDFs de texto E de imagens/
+    // slides — neste caso transcrevendo o conteúdo das lâminas.
+    const message = await this.client.messages.create({
+      model: MODEL,
+      max_tokens: 16000,
+      thinking: { type: "adaptive" },
+      system: [
+        { type: "text", text: SYSTEM_INSTRUCTOR, cache_control: { type: "ephemeral" } },
+      ],
+      output_config: { format: { type: "json_schema", schema: COURSE_DOC_SCHEMA } },
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "document",
+              source: {
+                type: "base64",
+                media_type: "application/pdf",
+                data: input.pdfBase64,
+              },
+            },
+            { type: "text", text: courseFromMaterialInstruction(input.level, input.audience) },
+          ],
         },
       ],
     });

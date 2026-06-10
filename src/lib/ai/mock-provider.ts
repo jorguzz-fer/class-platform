@@ -4,6 +4,7 @@ import type {
   CourseOutlineInput,
   DocumentCourseInput,
   DocumentCourseOutline,
+  PdfCourseInput,
   GeneratedQuiz,
   GeneratedQuestionSet,
   GeneratedQuestionDraft,
@@ -88,6 +89,35 @@ export class MockAIProvider implements AIProvider {
           title: "Conteúdo do documento",
           description: "Aulas geradas a partir do material enviado.",
           lessons: lessons.length > 0 ? lessons : [{ title: "Aula 1", content: text }],
+        },
+      ],
+    };
+  }
+
+  async generateCourseFromPdf(
+    input: PdfCourseInput,
+  ): Promise<DocumentCourseOutline> {
+    // O mock não tem visão: não consegue ler o PDF. Devolve um rascunho mínimo
+    // explicando que é preciso configurar a IA real (ANTHROPIC_API_KEY).
+    const audience = input.audience ? ` Público: ${input.audience}.` : "";
+    return {
+      title: "Curso a partir de PDF",
+      subtitle: "Configure a IA para ler o documento",
+      description:
+        "A leitura de PDF (inclusive de imagens/slides) exige a IA real. " +
+        "Configure ANTHROPIC_API_KEY para gerar o curso a partir do arquivo." +
+        audience,
+      modules: [
+        {
+          title: "Conteúdo do PDF",
+          description: "Será preenchido quando a IA real estiver configurada.",
+          lessons: [
+            {
+              title: "Aula 1",
+              content:
+                "Sem a IA real configurada, não é possível transcrever o PDF.",
+            },
+          ],
         },
       ],
     };

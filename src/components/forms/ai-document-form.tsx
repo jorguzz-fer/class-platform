@@ -59,9 +59,10 @@ export function AIDocumentForm() {
         <SubmitButton />
       </div>
       <p className="text-xs text-muted-foreground">
-        A IA lê o documento e organiza o conteúdo em um curso (módulos e aulas de
-        texto) como rascunho, para você revisar e publicar. Pode levar até ~1
-        minuto em arquivos grandes.
+        A IA lê o documento (incluindo <strong>PDF de slides/imagens</strong>,
+        que ela transcreve) e organiza o conteúdo em um curso — módulos e aulas
+        de texto — como rascunho, para você revisar e publicar. Pode levar até
+        ~1 minuto em arquivos grandes.
       </p>
     </form>
   );

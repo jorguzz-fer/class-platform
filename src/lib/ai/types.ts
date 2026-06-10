@@ -53,6 +53,14 @@ export interface DocumentCourseOutline {
   modules: GeneratedDocModule[];
 }
 
+// Geração de curso direto de um PDF (inclui PDFs de imagens/slides). O Claude lê
+// o PDF nativamente (visão), transcrevendo o conteúdo das lâminas.
+export interface PdfCourseInput {
+  pdfBase64: string;
+  level?: string;
+  audience?: string;
+}
+
 export interface QuizQuestion {
   question: string;
   options: string[];
@@ -116,10 +124,12 @@ export interface AIProvider {
   readonly name: string;
 
   generateCourseOutline(input: CourseOutlineInput): Promise<CourseOutline>;
-  /** Organiza o conteúdo de um documento em curso + módulos + aulas. */
+  /** Organiza o conteúdo de um documento (texto) em curso + módulos + aulas. */
   generateCourseFromDocument(
     input: DocumentCourseInput,
   ): Promise<DocumentCourseOutline>;
+  /** Lê um PDF (inclusive de imagens/slides) e organiza em curso. */
+  generateCourseFromPdf(input: PdfCourseInput): Promise<DocumentCourseOutline>;
   generateQuiz(input: LessonSummaryInput): Promise<GeneratedQuiz>;
   /** Monta questões de prova a partir de texto colado (Fase B). */
   generateQuestionsFromText(

@@ -114,22 +114,34 @@ export async function generateCourseFromDocumentAction(
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const extracted = await extractTextFromUpload(file.name, buffer);
-  if (!extracted.ok) return { error: extracted.error };
-  if (extracted.text.trim().length < 50) {
-    return { error: "Não foi possível ler conteúdo suficiente do documento." };
-  }
-
+  const ext = file.name.toLowerCase().split(".").pop() ?? "";
   const level = (formData.get("level") as string) || undefined;
   const audience = (formData.get("audience") as string) || undefined;
+  const provider = getAIProvider();
 
   let outline;
   try {
-    outline = await getAIProvider().generateCourseFromDocument({
-      content: extracted.text,
-      level,
-      audience,
-    });
+    if (ext === "pdf") {
+      // PDF (texto OU imagem/slides): o Claude lê nativamente. Limitamos o
+      // tamanho por custo/latência — a API aceita bem maiores.
+      if (buffer.byteLength > 10 * 1024 * 1024) {
+        return { error: "PDF muito grande (máx. 10 MB)." };
+      }
+      outline = await provider.generateCourseFromPdf({
+        pdfBase64: buffer.toString("base64"),
+        level,
+        audience,
+      });
+    } else {
+      // DOCX/TXT: extrai o texto e organiza.
+      const extracted = await extractTextFromUpload(file.name, buffer);
+      if (!extracted.ok) return { error: extracted.error };
+      outline = await provider.generateCourseFromDocument({
+        content: extracted.text,
+        level,
+        audience,
+      });
+    }
   } catch {
     return { error: "Não foi possível organizar o documento. Tente novamente." };
   }
