@@ -43,6 +43,7 @@ Em **Environment Variables**, defina (mínimo para subir):
 | `RESEND_API_KEY` | — | Sem ela, e-mail só loga no servidor |
 | `EMAIL_FROM` | — | Remetente verificado no Resend |
 | `ANTHROPIC_API_KEY` | — | Sem ela, IA usa provider mock |
+| `OPENAI_API_KEY` | — | Habilita gerar thumbnail por IA (OpenAI Images) |
 | `WHATSAPP_API_URL` / `WHATSAPP_API_TOKEN` | — | Gateway de WhatsApp |
 | `CRON_SECRET` | — | Habilita as rotas de automação |
 | `PAYMENT_PROVIDER` | — | Vazio = checkout mock |

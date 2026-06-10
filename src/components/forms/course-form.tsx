@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
+import { Sparkles } from "lucide-react";
 
 import type { CourseFormState } from "@/lib/actions/course-actions";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,39 @@ function ThumbnailField({
 }) {
   const [url, setUrl] = useState(defaultUrl);
   const [uploading, setUploading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  async function generateWithAI() {
+    const title = (
+      document.getElementById("title") as HTMLInputElement | null
+    )?.value?.trim();
+    const subtitle = (
+      document.getElementById("subtitle") as HTMLInputElement | null
+    )?.value?.trim();
+    if (!title || title.length < 2) {
+      toast.error("Preencha o título do curso primeiro.");
+      return;
+    }
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/ai/thumbnail", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title, subtitle }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Falha ao gerar a imagem.");
+        return;
+      }
+      setUrl(data.url);
+      toast.success("Imagem gerada pela IA.");
+    } catch {
+      toast.error("Falha ao gerar a imagem. Tente novamente.");
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -100,16 +134,28 @@ function ThumbnailField({
             id="thumbnailUrl"
             name="thumbnailUrl"
             type="url"
-            placeholder="https://… ou envie uma imagem acima"
+            placeholder="https://… ou envie/gere uma imagem"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
           />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-fit gap-1"
+            onClick={generateWithAI}
+            disabled={generating || uploading}
+          >
+            <Sparkles className="h-4 w-4" />
+            {generating ? "Gerando imagem…" : "Gerar com IA"}
+          </Button>
           {uploading && <p className="text-xs text-muted-foreground">Enviando…</p>}
           <FieldError messages={error} />
         </div>
       </div>
       <p className="text-xs text-muted-foreground">
-        Recomendado 16:9 (ex.: 1280×720). Aparece nos cards do aluno e no catálogo.
+        Recomendado 16:9 (ex.: 1280×720). Aparece nos cards do aluno e no
+        catálogo. &quot;Gerar com IA&quot; requer plano com IA + OPENAI_API_KEY.
       </p>
     </div>
   );
