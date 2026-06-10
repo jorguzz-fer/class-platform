@@ -30,6 +30,14 @@ function detectType(bytes: Uint8Array): { ext: string; contentType: string } | n
   if (ascii(0, 4) === "RIFF" && ascii(8, 4) === "WEBP")
     return { ext: "webp", contentType: "image/webp" };
   if (ascii(0, 4) === "GIF8") return { ext: "gif", contentType: "image/gif" };
+  // ICO (favicon): 00 00 01 00.
+  if (bytes[0] === 0x00 && bytes[1] === 0x00 && bytes[2] === 0x01 && bytes[3] === 0x00)
+    return { ext: "ico", contentType: "image/x-icon" };
+  // SVG (logo): documento XML que contém "<svg" no início.
+  const headText = ascii(0, Math.min(bytes.length, 256))
+    .replace(/^﻿/, "")
+    .toLowerCase();
+  if (headText.includes("<svg")) return { ext: "svg", contentType: "image/svg+xml" };
   return null;
 }
 
@@ -63,10 +71,10 @@ export async function POST(request: Request) {
   }
 
   const buffer = await file.arrayBuffer();
-  const type = detectType(new Uint8Array(buffer.slice(0, 12)));
+  const type = detectType(new Uint8Array(buffer.slice(0, 256)));
   if (!type) {
     return NextResponse.json(
-      { error: "Formato não suportado. Envie PDF, PNG, JPG ou WEBP." },
+      { error: "Formato não suportado. Envie PDF, PNG, JPG, WEBP, SVG ou ICO." },
       { status: 415 },
     );
   }
