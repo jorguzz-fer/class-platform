@@ -24,7 +24,10 @@ const nextConfig: NextConfig = {
   output: "standalone",
   // Libs de extração de texto (.docx/.pdf) só rodam no servidor; mantê-las
   // externas evita problemas de bundling (pdfjs/worker) no build.
-  serverExternalPackages: ["mammoth", "pdf-parse"],
+  // pdf-parse usa pdfjs, que precisa de @napi-rs/canvas (polyfill de DOMMatrix
+  // etc.) para ler PDFs no servidor. Mantê-los externos preserva os binários
+  // nativos no build standalone.
+  serverExternalPackages: ["mammoth", "pdf-parse", "@napi-rs/canvas"],
   experimental: {
     // Permite enviar documentos (PDF/DOCX) maiores que o padrão de 1 MB nas
     // Server Actions (ex.: gerar curso/quiz a partir de arquivo).

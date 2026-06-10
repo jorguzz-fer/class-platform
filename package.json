@@ -26,6 +26,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",
     "@hookform/resolvers": "^3.9.1",
+    "@napi-rs/canvas": "^1.0.0",
     "@prisma/client": "^6.1.0",
     "aws4fetch": "^1.0.20",
     "bcryptjs": "^2.4.3",
