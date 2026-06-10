@@ -28,7 +28,6 @@ export async function generateThumbnailImage(prompt: string): Promise<ArrayBuffe
       prompt,
       size: "1792x1024", // paisagem (~16:9)
       n: 1,
-      response_format: "b64_json",
     }),
   });
 
@@ -38,10 +37,21 @@ export async function generateThumbnailImage(prompt: string): Promise<ArrayBuffe
     throw new Error("Falha ao gerar a imagem.");
   }
 
-  const data = (await res.json()) as { data?: { b64_json?: string }[] };
-  const b64 = data.data?.[0]?.b64_json;
-  if (!b64) throw new Error("Resposta sem imagem.");
+  const data = (await res.json()) as {
+    data?: { b64_json?: string; url?: string }[];
+  };
+  const item = data.data?.[0];
 
-  const buf = Buffer.from(b64, "base64");
-  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+  // A resposta pode vir como base64 (b64_json) ou como URL temporária,
+  // conforme o modelo/conta. Tratamos os dois casos.
+  if (item?.b64_json) {
+    const buf = Buffer.from(item.b64_json, "base64");
+    return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+  }
+  if (item?.url) {
+    const imgRes = await fetch(item.url);
+    if (!imgRes.ok) throw new Error("Falha ao baixar a imagem gerada.");
+    return imgRes.arrayBuffer();
+  }
+  throw new Error("Resposta sem imagem.");
 }
