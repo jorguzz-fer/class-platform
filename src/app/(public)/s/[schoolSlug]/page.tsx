@@ -107,7 +107,7 @@ export default async function PublicSchoolPage({
               <img
                 src={school.heroImageUrl}
                 alt={school.name}
-                className="block w-full"
+                className="block h-44 w-full object-cover sm:h-56 md:h-72 lg:h-80"
               />
             </Link>
           ) : (
