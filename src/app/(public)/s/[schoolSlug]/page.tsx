@@ -94,54 +94,63 @@ export default async function PublicSchoolPage({
         </main>
       ) : (
         <main className="flex-1">
-          {/* HERO — curso em destaque */}
-          <section className="relative isolate overflow-hidden border-b">
-            <div className="absolute inset-0 -z-10">
-              {school.heroImageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={school.heroImageUrl}
-                  alt=""
-                  className="h-full w-full scale-105 object-cover blur-[2px]"
-                />
-              ) : (
+          {/* HERO */}
+          {school.heroImageUrl ? (
+            // Capa personalizada: só a imagem, limpa (sem overlay nem texto).
+            // Clicável para o curso em destaque.
+            <Link
+              href={`/s/${schoolSlug}/courses/${featured.slug}`}
+              className="block border-b"
+              aria-label={featured.title}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={school.heroImageUrl}
+                alt={school.name}
+                className="block w-full"
+              />
+            </Link>
+          ) : (
+            // Sem capa: hero com a thumbnail do curso em destaque + texto/CTA.
+            <section className="relative isolate overflow-hidden border-b">
+              <div className="absolute inset-0 -z-10">
                 <CourseThumb course={featured} className="scale-105 blur-[2px]" />
-              )}
-              {/* Sobreposição para legibilidade do texto em ambos os temas. */}
-              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/85 to-background/40" />
-              <div className="absolute inset-0 bg-gradient-to-r from-background/90 to-transparent" />
-            </div>
-            <div className="container flex flex-col gap-4 py-12 sm:py-16 md:max-w-2xl md:py-24">
-              {school.description && (
-                <p className="text-sm text-muted-foreground">{school.description}</p>
-              )}
-              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-                {featured.title}
-              </h1>
-              {featured.subtitle && (
-                <p className="max-w-xl text-base text-muted-foreground sm:text-lg">
-                  {featured.subtitle}
-                </p>
-              )}
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">
-                  {formatPrice(featured.price, featured.currency)}
-                </Badge>
-                {levelLabel(featured.level) && (
-                  <Badge variant="outline">{levelLabel(featured.level)}</Badge>
+                {/* Sobreposição para legibilidade do texto em ambos os temas. */}
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/85 to-background/40" />
+                <div className="absolute inset-0 bg-gradient-to-r from-background/90 to-transparent" />
+              </div>
+              <div className="container flex flex-col gap-4 py-12 sm:py-16 md:max-w-2xl md:py-24">
+                {school.description && (
+                  <p className="text-sm text-muted-foreground">{school.description}</p>
                 )}
+                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
+                  {featured.title}
+                </h1>
+                {featured.subtitle && (
+                  <p className="max-w-xl text-base text-muted-foreground sm:text-lg">
+                    {featured.subtitle}
+                  </p>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary">
+                    {formatPrice(featured.price, featured.currency)}
+                  </Badge>
+                  {levelLabel(featured.level) && (
+                    <Badge variant="outline">{levelLabel(featured.level)}</Badge>
+                  )}
+                </div>
+                <div>
+                  <Link
+                    href={`/s/${schoolSlug}/courses/${featured.slug}`}
+                    className={cn(buttonVariants({ size: "lg" }), "mt-2 gap-2")}
+                  >
+                    <PlayCircle className="h-5 w-5" />
+                    Começar agora
+                  </Link>
+                </div>
               </div>
-              <div>
-                <Link
-                  href={`/s/${schoolSlug}/courses/${featured.slug}`}
-                  className={cn(buttonVariants({ size: "lg" }), "mt-2 gap-2")}
-                >
-                  <PlayCircle className="h-5 w-5" />
-                  Começar agora
-                </Link>
-              </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           {/* GRADE de cursos */}
           <section className="container py-10">
