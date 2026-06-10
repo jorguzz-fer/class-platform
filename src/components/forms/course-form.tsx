@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Loader2 } from "lucide-react";
 
 import type { CourseFormState } from "@/lib/actions/course-actions";
 import { Button } from "@/components/ui/button";
@@ -146,10 +146,19 @@ function ThumbnailField({
             onClick={generateWithAI}
             disabled={generating || uploading}
           >
-            <Sparkles className="h-4 w-4" />
+            {generating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
             {generating ? "Gerando imagem…" : "Gerar com IA"}
           </Button>
-          {uploading && <p className="text-xs text-muted-foreground">Enviando…</p>}
+          {uploading && (
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Enviando…
+            </p>
+          )}
           <FieldError messages={error} />
         </div>
       </div>

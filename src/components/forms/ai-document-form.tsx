@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { FileUp } from "lucide-react";
+import { FileUp, Loader2 } from "lucide-react";
 
 import {
   generateCourseFromDocumentAction,
@@ -19,9 +19,26 @@ function SubmitButton() {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" className="gap-2" disabled={pending}>
-      <FileUp className="h-4 w-4" />
+      {pending ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <FileUp className="h-4 w-4" />
+      )}
       {pending ? "Organizando documento…" : "Gerar curso do documento"}
     </Button>
+  );
+}
+
+/** Aviso "pensando" enquanto a IA processa (a chamada pode levar ~1 min). */
+function PendingNote() {
+  const { pending } = useFormStatus();
+  if (!pending) return null;
+  return (
+    <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+      <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+      A IA está lendo e organizando o documento… isso pode levar até ~1 minuto.
+      Não feche esta página.
+    </div>
   );
 }
 
@@ -55,6 +72,7 @@ export function AIDocumentForm() {
         </div>
       </div>
       {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
+      <PendingNote />
       <div>
         <SubmitButton />
       </div>
