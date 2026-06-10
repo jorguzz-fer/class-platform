@@ -1,3 +1,5 @@
+import bcrypt from "bcryptjs";
+
 import { db } from "@/lib/db";
 import type { AdminUpdateUserInput } from "@/lib/validators";
 
@@ -90,6 +92,33 @@ export async function updateUserAsAdmin(
   });
   if (result.count === 0) return { ok: false, error: "Usuário não encontrado." };
   return { ok: true };
+}
+
+/**
+ * Define uma nova senha para um usuário (ação de SUPER_ADMIN, ex.: suporte a
+ * quem perdeu acesso e o e-mail de redefinição não chega). Grava o hash bcrypt
+ * e invalida links de redefinição pendentes. Retorna false se o usuário não
+ * existe. Nunca recebe/guarda a senha em claro além do hash.
+ */
+export async function adminResetUserPassword(
+  userId: string,
+  newPassword: string,
+): Promise<boolean> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  });
+  if (!user) return false;
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  await db.$transaction([
+    db.user.update({ where: { id: userId }, data: { passwordHash } }),
+    db.passwordResetToken.updateMany({
+      where: { userId, usedAt: null },
+      data: { usedAt: new Date() },
+    }),
+  ]);
+  return true;
 }
 
 export function listAuditLogs(take = 100) {

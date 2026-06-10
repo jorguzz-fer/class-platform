@@ -227,6 +227,12 @@ export const adminUpdateUserSchema = z.object({
 });
 export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;
 
+// Redefinição de senha de um usuário pelo painel da plataforma (SUPER_ADMIN).
+export const adminResetPasswordSchema = z.object({
+  password: passwordSchema,
+});
+export type AdminResetPasswordInput = z.infer<typeof adminResetPasswordSchema>;
+
 export type CreateStudentInput = z.infer<typeof createStudentSchema>;
 export type UpdateStudentInput = z.infer<typeof updateStudentSchema>;
 export type CreateEnrollmentInput = z.infer<typeof createEnrollmentSchema>;
