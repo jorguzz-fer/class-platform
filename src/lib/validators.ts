@@ -65,9 +65,6 @@ export const createCourseSchema = z.object({
   level: z.enum(courseLevels).default("ALL_LEVELS"),
   visibility: z.enum(courseVisibilities).default("PRIVATE"),
   category: z.string().trim().max(80).optional().or(z.literal("")),
-});
-
-export const updateCourseSchema = createCourseSchema.extend({
   thumbnailUrl: z.string().trim().url("URL inválida").max(500).optional().or(z.literal("")),
   price: z.coerce
     .number({ invalid_type_error: "Preço inválido" })
@@ -75,6 +72,9 @@ export const updateCourseSchema = createCourseSchema.extend({
     .max(1_000_000)
     .optional(),
 });
+
+// Mesma forma da criação (título, mídia, preço etc.).
+export const updateCourseSchema = createCourseSchema;
 
 export type CreateCourseInput = z.infer<typeof createCourseSchema>;
 export type UpdateCourseInput = z.infer<typeof updateCourseSchema>;

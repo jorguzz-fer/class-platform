@@ -67,7 +67,11 @@ export default async function NewCoursePage() {
           <CardTitle className="text-base">Criar manualmente</CardTitle>
         </CardHeader>
         <CardContent>
-          <CourseForm action={createCourseAction} submitLabel="Criar curso" />
+          <CourseForm
+            action={createCourseAction}
+            submitLabel="Criar curso"
+            showExtraFields
+          />
         </CardContent>
       </Card>
     </div>

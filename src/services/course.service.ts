@@ -80,6 +80,8 @@ export async function createCourse(
       level: input.level,
       visibility: input.visibility,
       category: input.category || null,
+      thumbnailUrl: input.thumbnailUrl || null,
+      price: input.price != null ? new Prisma.Decimal(input.price) : null,
       status: "DRAFT",
     },
   });
