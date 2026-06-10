@@ -182,9 +182,11 @@ export function BrandingForm({ defaults }: { defaults: Defaults }) {
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          Aparece como fundo do banner no topo do catálogo público. Recomendado
-          paisagem 16:9 (ex.: 1920×1080). Sem imagem, usa a capa do curso em
-          destaque.
+          Fundo do banner no topo do catálogo público.{" "}
+          <strong>Dimensão recomendada: 1920×1080px</strong> (paisagem 16:9;
+          mínimo 1280×720). Formatos: PNG, JPG ou WEBP (até 20&nbsp;MB). Prefira
+          uma imagem <strong>horizontal</strong> e de boa resolução — ela ocupa
+          toda a largura. Sem imagem, usa a capa do curso em destaque.
         </p>
       </div>
 
