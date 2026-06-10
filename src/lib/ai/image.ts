@@ -17,6 +17,12 @@ export async function generateThumbnailImage(prompt: string): Promise<ArrayBuffe
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY não configurada.");
 
+  // Modelo configurável por env (padrão: gpt-image-1, o atual da OpenAI).
+  // O tamanho de paisagem difere entre modelos: gpt-image-1 = 1536x1024;
+  // dall-e-3 = 1792x1024.
+  const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
+  const size = model === "dall-e-3" ? "1792x1024" : "1536x1024";
+
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: {
@@ -24,9 +30,9 @@ export async function generateThumbnailImage(prompt: string): Promise<ArrayBuffe
       authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "dall-e-3",
+      model,
       prompt,
-      size: "1792x1024", // paisagem (~16:9)
+      size, // paisagem (~16:9)
       n: 1,
     }),
   });
