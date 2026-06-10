@@ -15,6 +15,7 @@ import { getStudentLessonRating } from "@/services/rating.service";
 import { getOrgPlan } from "@/services/school.service";
 import { listLessonComments } from "@/services/community.service";
 import { LessonCompleteButton } from "@/components/student/lesson-complete-button";
+import { PdfSlideViewer } from "@/components/student/pdf-slide-viewer";
 import { TutorChat } from "@/components/student/tutor-chat";
 import { LessonComments } from "@/components/student/lesson-comments";
 import { CourseOutlineNav } from "@/components/student/course-outline-nav";
@@ -61,6 +62,10 @@ function LessonContent({
         />
       );
     }
+  }
+
+  if (contentType === "PDF" && videoUrl) {
+    return <PdfSlideViewer url={videoUrl} />;
   }
 
   if (contentType === "TEXT" && textContent) {

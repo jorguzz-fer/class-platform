@@ -409,6 +409,9 @@ function LessonForm({
   onCancel: () => void;
   onSubmit: (formData: FormData) => void;
 }) {
+  const [type, setType] = useState<LessonContentType>("VIDEO");
+  const usesVideo = type === "VIDEO" || type === "EMBED";
+
   return (
     <form action={onSubmit} className="flex flex-col gap-3 rounded-md border p-3">
       <div className="flex flex-col gap-2">
@@ -419,7 +422,13 @@ function LessonForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="lesson-type">Tipo de conteúdo</Label>
-          <select id="lesson-type" name="contentType" className={selectClass} defaultValue="VIDEO">
+          <select
+            id="lesson-type"
+            name="contentType"
+            className={selectClass}
+            value={type}
+            onChange={(e) => setType(e.target.value as LessonContentType)}
+          >
             {contentTypes.map((c) => (
               <option key={c.value} value={c.value}>
                 {c.label}
@@ -433,7 +442,8 @@ function LessonForm({
         </div>
       </div>
 
-      <VideoSourceFields />
+      {usesVideo && <VideoSourceFields />}
+      {type === "PDF" && <PdfUploadField selectClass={selectClass} />}
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="lesson-text">Conteúdo em texto (opcional)</Label>
@@ -458,6 +468,68 @@ function LessonForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Upload de PDF (slides) para a aula. Envia o arquivo ao Route Handler
+ * /api/uploads (storage no servidor) e guarda a URL pública num campo oculto
+ * `fileUrl`, que a action mapeia para o conteúdo da aula PDF.
+ */
+function PdfUploadField({ selectClass }: { selectClass: string }) {
+  const [url, setUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      toast.error("Envie um arquivo PDF.");
+      return;
+    }
+    setUploading(true);
+    setUrl("");
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/uploads", { method: "POST", body });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Falha no upload.");
+        return;
+      }
+      setUrl(data.url);
+      toast.success("PDF enviado.");
+    } catch {
+      toast.error("Falha no upload. Tente novamente.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor="lesson-pdf">Arquivo PDF (slides)</Label>
+      <input
+        id="lesson-pdf"
+        type="file"
+        accept="application/pdf"
+        className={selectClass}
+        onChange={handleFile}
+        disabled={uploading}
+      />
+      {/* A URL enviada vai junto no submit do formulário. */}
+      <input type="hidden" name="fileUrl" value={url} />
+      {uploading && <p className="text-xs text-muted-foreground">Enviando…</p>}
+      {url && !uploading && (
+        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+          PDF enviado — o aluno verá um passador de slides.
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        O aluno navega pelas lâminas (passador de slides). Máx. 20 MB.
+      </p>
+    </div>
   );
 }
 

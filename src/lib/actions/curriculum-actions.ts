@@ -110,6 +110,7 @@ function parseLesson(formData: FormData) {
     contentType: formData.get("contentType") ?? undefined,
     videoProvider: formData.get("videoProvider") ?? undefined,
     videoSource: formData.get("videoSource") ?? undefined,
+    fileUrl: formData.get("fileUrl") ?? undefined,
     textContent: formData.get("textContent") ?? undefined,
     durationMinutes: formData.get("durationMinutes") || undefined,
     isPreview: formData.get("isPreview") === "on" || formData.get("isPreview") === "true",
@@ -134,14 +135,24 @@ function toLessonInput(
     ? provider!.parse(data.videoSource!)
     : { videoId: null, videoUrl: null };
 
+  // Aula PDF (slides): a URL do arquivo enviado fica em videoUrl. undefined =
+  // "não alterar" (não apaga o PDF já salvo ao editar outros campos).
+  const isPdf = data.contentType === "PDF";
+
   return {
     title: data.title,
     description: data.description,
     contentType: data.contentType,
     // undefined = manter o que já existe (não sobrescreve na edição).
-    videoProvider: hasNewSource ? provider!.id : undefined,
-    videoId: hasNewSource ? parsed.videoId : undefined,
-    videoUrl: hasNewSource ? parsed.videoUrl : undefined,
+    videoProvider: isPdf ? null : hasNewSource ? provider!.id : undefined,
+    videoId: isPdf ? null : hasNewSource ? parsed.videoId : undefined,
+    videoUrl: isPdf
+      ? data.fileUrl
+        ? data.fileUrl
+        : undefined
+      : hasNewSource
+        ? parsed.videoUrl
+        : undefined,
     textContent: data.textContent,
     durationMinutes: data.durationMinutes,
     isPreview: data.isPreview,

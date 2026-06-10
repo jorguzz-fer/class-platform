@@ -105,6 +105,9 @@ export const lessonSchema = z.object({
   // (src/lib/video) normaliza em videoId/videoUrl no momento de salvar.
   videoProvider: z.string().trim().max(40).optional().or(z.literal("")),
   videoSource: z.string().trim().max(500).optional().or(z.literal("")),
+  // URL do arquivo enviado (ex.: PDF de slides). Guardada em videoUrl para o
+  // tipo PDF — reaproveita o campo de URL sem nova coluna no banco.
+  fileUrl: z.string().trim().url("URL inválida").max(1000).optional().or(z.literal("")),
   textContent: z.string().trim().max(50000).optional().or(z.literal("")),
   durationMinutes: z.coerce.number().int().min(0).max(100000).optional(),
   isPreview: z.coerce.boolean().default(false),

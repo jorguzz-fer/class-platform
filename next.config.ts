@@ -25,6 +25,11 @@ const nextConfig: NextConfig = {
   // Libs de extração de texto (.docx/.pdf) só rodam no servidor; mantê-las
   // externas evita problemas de bundling (pdfjs/worker) no build.
   serverExternalPackages: ["mammoth", "pdf-parse"],
+  experimental: {
+    // Permite enviar documentos (PDF/DOCX) maiores que o padrão de 1 MB nas
+    // Server Actions (ex.: gerar curso/quiz a partir de arquivo).
+    serverActions: { bodySizeLimit: "12mb" },
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
