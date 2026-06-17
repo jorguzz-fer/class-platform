@@ -15,6 +15,7 @@ import { getStudentLessonRating } from "@/services/rating.service";
 import { getOrgPlan } from "@/services/school.service";
 import { listLessonComments } from "@/services/community.service";
 import { LessonCompleteButton } from "@/components/student/lesson-complete-button";
+import { LessonAutoComplete } from "@/components/student/lesson-auto-complete";
 import { PdfSlideViewer } from "@/components/student/pdf-slide-viewer";
 import { TutorChat } from "@/components/student/tutor-chat";
 import { LessonComments } from "@/components/student/lesson-comments";
@@ -200,6 +201,12 @@ export default async function LessonPlayerPage({
           courseSlug={courseSlug}
           completed={completed}
         />
+
+        {/* Aulas de leitura (texto/PDF) concluem ao abrir — não têm "fim" como
+            o vídeo. Evita que o aluno passe pelas aulas e a prova não libere. */}
+        {!completed && (lesson.contentType === "TEXT" || lesson.contentType === "PDF") && (
+          <LessonAutoComplete lessonId={lesson.id} courseSlug={courseSlug} />
+        )}
 
         {/* Navegação anterior/próxima (sempre visível) */}
         <div className="flex items-center justify-between gap-2">
