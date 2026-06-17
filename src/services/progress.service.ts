@@ -158,7 +158,7 @@ export async function getLessonForPlayer(studentId: string, lessonId: string) {
 
   const { lesson, progress } = access;
 
-  const [attachments, ordered] = await Promise.all([
+  const [attachments, ordered, lockedModuleIds] = await Promise.all([
     db.lessonAttachment.findMany({
       where: { lessonId },
       select: { id: true, fileName: true, fileUrl: true, fileType: true },
@@ -167,20 +167,49 @@ export async function getLessonForPlayer(studentId: string, lessonId: string) {
     db.lesson.findMany({
       where: { courseId: lesson.courseId },
       orderBy: [{ module: { orderIndex: "asc" } }, { orderIndex: "asc" }],
-      select: { id: true },
+      select: { id: true, moduleId: true },
     }),
+    getLockedModuleIds(studentId, lesson.courseId),
   ]);
 
   const index = ordered.findIndex((l) => l.id === lessonId);
-  const nextLessonId =
-    index >= 0 && index < ordered.length - 1 ? ordered[index + 1].id : null;
   const prevLessonId = index > 0 ? ordered[index - 1].id : null;
+  const rawNext =
+    index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : null;
+
+  // Se a próxima aula está num módulo BLOQUEADO (prova de progressão pendente),
+  // não linkamos para ela (causaria 404). Em vez disso, apontamos para a prova
+  // do módulo atual, que é o que destrava a sequência.
+  let nextLessonId: string | null = null;
+  let nextQuizId: string | null = null;
+  if (rawNext) {
+    if (lockedModuleIds.has(rawNext.moduleId)) {
+      const mod = await db.module.findUnique({
+        where: { id: lesson.moduleId },
+        select: {
+          quiz: {
+            select: {
+              id: true,
+              isPublished: true,
+              _count: { select: { questions: true } },
+            },
+          },
+        },
+      });
+      if (mod?.quiz?.isPublished && mod.quiz._count.questions > 0) {
+        nextQuizId = mod.quiz.id;
+      }
+    } else {
+      nextLessonId = rawNext.id;
+    }
+  }
 
   return {
     lesson,
     attachments,
     completed: progress?.status === "COMPLETED",
     nextLessonId,
+    nextQuizId,
     prevLessonId,
     position: { current: index + 1, total: ordered.length },
   };

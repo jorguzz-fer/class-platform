@@ -127,7 +127,7 @@ export default async function LessonPlayerPage({
   const data = await getLessonForPlayer(ctx.userId, lessonId);
   if (!data) notFound();
 
-  const { lesson, attachments, completed, nextLessonId, prevLessonId, position } =
+  const { lesson, attachments, completed, nextLessonId, nextQuizId, prevLessonId, position } =
     data;
 
   const { modules, progressByLesson, lockedModuleIds } = await getCoursePlayer(
@@ -162,6 +162,10 @@ export default async function LessonPlayerPage({
     : null;
   const nextHref = nextLessonId
     ? `/app/courses/${courseSlug}/lessons/${nextLessonId}`
+    : null;
+  // Próximo módulo bloqueado: encaminha para a prova que destrava (evita 404).
+  const quizHref = nextQuizId
+    ? `/app/courses/${courseSlug}/quiz/${nextQuizId}`
     : null;
 
   return (
@@ -216,6 +220,14 @@ export default async function LessonPlayerPage({
               className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1")}
             >
               Próxima
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          ) : quizHref ? (
+            <Link
+              href={quizHref}
+              className={cn(buttonVariants({ size: "sm" }), "gap-1")}
+            >
+              Fazer a prova do módulo
               <ChevronRight className="h-4 w-4" />
             </Link>
           ) : (
