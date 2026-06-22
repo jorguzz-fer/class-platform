@@ -120,11 +120,13 @@ const COURSE_PDF_SCHEMA = {
 function courseFromMaterialInstruction(level?: string, audience?: string): string {
   return (
     "Organize o material em um curso estruturado (título, subtítulo, descrição " +
-    "e módulos com aulas). Cada aula deve ter um título e o CONTEÚDO em texto, " +
-    "redigido a partir do material (organize e melhore a didática, mas NÃO " +
-    "invente fatos que não estejam no material). Quando o material for um PDF de " +
-    "slides/imagens, TRANSCREVA o texto das lâminas. Divida em módulos coerentes, " +
-    "cada um com 2 a 6 aulas." +
+    "e módulos com aulas). Cada aula deve ter um título e um CONTEÚDO de texto " +
+    "OBJETIVO e CONCISO (em torno de 2 a 5 frases, no máximo um parágrafo curto) " +
+    "redigido a partir do material — o aluno também verá a lâmina/material " +
+    "original, então NÃO escreva textos longos. Não invente fatos que não " +
+    "estejam no material. Quando for um PDF de slides/imagens, RESUMA o ponto " +
+    "principal de cada lâmina. Divida em módulos coerentes, cada um com 2 a 6 " +
+    "aulas." +
     (level ? ` Nível: ${level}.` : "") +
     (audience ? ` Público: ${audience}.` : "")
   );
@@ -205,8 +207,9 @@ export class AnthropicAIProvider implements AIProvider {
 
     const message = await this.client.messages.create({
       model: COURSE_MODEL,
-      max_tokens: 16000,
-      thinking: { type: "adaptive" },
+      // Saída enxuta (conteúdo conciso) + sem thinking: muito mais rápido,
+      // evitando esperas de minutos e timeout do proxy.
+      max_tokens: 8000,
       system: [
         { type: "text", text: SYSTEM_INSTRUCTOR, cache_control: { type: "ephemeral" } },
       ],
@@ -231,8 +234,9 @@ export class AnthropicAIProvider implements AIProvider {
     // slides — neste caso transcrevendo o conteúdo das lâminas.
     const message = await this.client.messages.create({
       model: COURSE_MODEL,
-      max_tokens: 16000,
-      thinking: { type: "adaptive" },
+      // Saída enxuta (conteúdo conciso) + sem thinking: muito mais rápido,
+      // evitando esperas de minutos e timeout do proxy.
+      max_tokens: 8000,
       system: [
         { type: "text", text: SYSTEM_INSTRUCTOR, cache_control: { type: "ephemeral" } },
       ],
