@@ -27,6 +27,12 @@ import type {
  */
 const MODEL = "claude-opus-4-8";
 
+// Geração de curso a partir de documento/PDF é uma tarefa longa (transcreve o
+// material e escreve o conteúdo de todas as aulas). Usa um modelo mais rápido
+// por padrão para reduzir latência — configurável por env. As tarefas menores
+// continuam no Opus.
+const COURSE_MODEL = process.env.ANTHROPIC_COURSE_MODEL || "claude-sonnet-4-6";
+
 // System prompt estável (cacheável) — conteúdo volátil vai nas mensagens.
 const SYSTEM_INSTRUCTOR =
   "Você é um especialista em design instrucional para cursos online em português do Brasil. " +
@@ -198,7 +204,7 @@ export class AnthropicAIProvider implements AIProvider {
     const content = input.content.slice(0, 80000);
 
     const message = await this.client.messages.create({
-      model: MODEL,
+      model: COURSE_MODEL,
       max_tokens: 16000,
       thinking: { type: "adaptive" },
       system: [
@@ -224,7 +230,7 @@ export class AnthropicAIProvider implements AIProvider {
     // O Claude lê o PDF nativamente (visão): cobre PDFs de texto E de imagens/
     // slides — neste caso transcrevendo o conteúdo das lâminas.
     const message = await this.client.messages.create({
-      model: MODEL,
+      model: COURSE_MODEL,
       max_tokens: 16000,
       thinking: { type: "adaptive" },
       system: [
