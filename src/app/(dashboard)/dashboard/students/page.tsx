@@ -6,11 +6,18 @@ import { listStudents } from "@/services/student.service";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ListFilters } from "@/components/dashboard/list-filters";
 import { cn } from "@/lib/utils";
 
-export default async function StudentsPage() {
+export default async function StudentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; status?: string }>;
+}) {
   const { organizationId } = await requireOrg();
-  const students = await listStudents(organizationId);
+  const { q = "", status = "" } = await searchParams;
+  const hasFilters = q.trim() !== "" || status !== "";
+  const students = await listStudents(organizationId, { q, status });
 
   return (
     <div className="flex flex-col gap-6">
@@ -25,14 +32,42 @@ export default async function StudentsPage() {
         </Link>
       </div>
 
+      <ListFilters
+        q={q}
+        status={status}
+        searchPlaceholder="Buscar por nome ou e-mail…"
+        statuses={[
+          { value: "", label: "Todos" },
+          { value: "active", label: "Ativo" },
+          { value: "inactive", label: "Inativo" },
+        ]}
+      />
+
       {students.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
             <Users className="h-10 w-10 text-muted-foreground" />
-            <p className="font-medium">Nenhum aluno ainda</p>
-            <p className="text-sm text-muted-foreground">
-              Cadastre alunos para matriculá-los nos cursos.
-            </p>
+            {hasFilters ? (
+              <>
+                <p className="font-medium">Nenhum aluno encontrado</p>
+                <p className="text-sm text-muted-foreground">
+                  Tente outro termo de busca ou status.
+                </p>
+                <Link
+                  href="/dashboard/students"
+                  className={cn(buttonVariants({ variant: "outline" }), "mt-2")}
+                >
+                  Limpar filtros
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="font-medium">Nenhum aluno ainda</p>
+                <p className="text-sm text-muted-foreground">
+                  Cadastre alunos para matriculá-los nos cursos.
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       ) : (

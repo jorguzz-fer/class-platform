@@ -1,13 +1,39 @@
+import { Prisma, type EnrollmentStatus } from "@prisma/client";
+
 import { db } from "@/lib/db";
 
 /**
  * Serviço de Matrículas (SPEC §14.8). Escopado por organizationId.
  */
 
-export function listEnrollments(organizationId: string) {
+const ENROLLMENT_STATUSES = ["ACTIVE", "EXPIRED", "CANCELED", "COMPLETED"] as const;
+
+export function listEnrollments(
+  organizationId: string,
+  filters?: { q?: string; status?: string },
+) {
+  const q = filters?.q?.trim();
+  const status = (ENROLLMENT_STATUSES as readonly string[]).includes(
+    filters?.status ?? "",
+  )
+    ? (filters!.status as EnrollmentStatus)
+    : undefined;
+  const insensitive = { mode: "insensitive" as const };
   return db.enrollment.findMany({
-    // PENDING aparece na seção de solicitações, não na lista geral.
-    where: { organizationId, status: { not: "PENDING" } },
+    where: {
+      organizationId,
+      // PENDING aparece na seção de solicitações, não na lista geral.
+      status: status ?? { not: "PENDING" },
+      ...(q
+        ? {
+            OR: [
+              { student: { name: { contains: q, ...insensitive } } },
+              { student: { email: { contains: q, ...insensitive } } },
+              { course: { title: { contains: q, ...insensitive } } },
+            ] as Prisma.EnrollmentWhereInput["OR"],
+          }
+        : {}),
+    },
     orderBy: { enrolledAt: "desc" },
     include: {
       student: { select: { id: true, name: true, email: true } },

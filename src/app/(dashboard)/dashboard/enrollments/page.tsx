@@ -9,11 +9,18 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { EnrollmentStatusBadge } from "@/components/dashboard/enrollment-status-badge";
 import { PendingEnrollmentActions } from "@/components/dashboard/pending-enrollment-actions";
+import { ListFilters } from "@/components/dashboard/list-filters";
 
-export default async function EnrollmentsPage() {
+export default async function EnrollmentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; status?: string }>;
+}) {
   const { organizationId } = await requireOrg();
+  const { q = "", status = "" } = await searchParams;
+  const hasFilters = q.trim() !== "" || status !== "";
   const [enrollments, pending] = await Promise.all([
-    listEnrollments(organizationId),
+    listEnrollments(organizationId, { q, status }),
     listPendingEnrollments(organizationId),
   ]);
 
@@ -70,14 +77,44 @@ export default async function EnrollmentsPage() {
         </Card>
       )}
 
+      <ListFilters
+        q={q}
+        status={status}
+        searchPlaceholder="Buscar por aluno ou curso…"
+        statuses={[
+          { value: "", label: "Todos os status" },
+          { value: "ACTIVE", label: "Ativa" },
+          { value: "COMPLETED", label: "Concluída" },
+          { value: "EXPIRED", label: "Expirada" },
+          { value: "CANCELED", label: "Cancelada" },
+        ]}
+      />
+
       {enrollments.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
             <GraduationCap className="h-10 w-10 text-muted-foreground" />
-            <p className="font-medium">Nenhuma matrícula ainda</p>
-            <p className="text-sm text-muted-foreground">
-              Matricule alunos pela página de cada aluno.
-            </p>
+            {hasFilters ? (
+              <>
+                <p className="font-medium">Nenhuma matrícula encontrada</p>
+                <p className="text-sm text-muted-foreground">
+                  Tente outro termo de busca ou status.
+                </p>
+                <Link
+                  href="/dashboard/enrollments"
+                  className="mt-2 text-sm text-primary hover:underline"
+                >
+                  Limpar filtros
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="font-medium">Nenhuma matrícula ainda</p>
+                <p className="text-sm text-muted-foreground">
+                  Matricule alunos pela página de cada aluno.
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       ) : (
