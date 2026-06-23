@@ -18,6 +18,7 @@ export interface LessonServiceInput {
   videoId?: string | null;
   videoUrl?: string | null;
   textContent?: string;
+  imageUrl?: string | null;
   durationMinutes?: number;
   isPreview: boolean;
   isRequired: boolean;
@@ -58,6 +59,7 @@ export async function createLesson(
       videoId: input.videoId || null,
       videoUrl: input.videoUrl || null,
       textContent: input.textContent || null,
+      imageUrl: input.imageUrl || null,
       durationMinutes: input.durationMinutes ?? null,
       isPreview: input.isPreview,
       isRequired: input.isRequired,
@@ -82,6 +84,7 @@ export async function updateLesson(
       ...(input.videoProvider !== undefined ? { videoProvider: input.videoProvider || null } : {}),
       ...(input.videoId !== undefined ? { videoId: input.videoId || null } : {}),
       ...(input.videoUrl !== undefined ? { videoUrl: input.videoUrl || null } : {}),
+      ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl || null } : {}),
       textContent: input.textContent || null,
       durationMinutes: input.durationMinutes ?? null,
       isPreview: input.isPreview,

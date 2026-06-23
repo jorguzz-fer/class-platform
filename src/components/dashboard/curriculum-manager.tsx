@@ -450,6 +450,8 @@ function LessonForm({
         <Textarea id="lesson-text" name="textContent" rows={2} />
       </div>
 
+      <LessonImageField selectClass={selectClass} />
+
       <div className="flex gap-4">
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="isRequired" defaultChecked /> Obrigatória
@@ -476,6 +478,72 @@ function LessonForm({
  * /api/uploads (storage no servidor) e guarda a URL pública num campo oculto
  * `fileUrl`, que a action mapeia para o conteúdo da aula PDF.
  */
+/**
+ * Imagem opcional da aula (lâmina/figura). Enviada ao storage e exibida acima
+ * do conteúdo na tela do aluno. Vale para qualquer tipo de aula.
+ */
+function LessonImageField({ selectClass }: { selectClass: string }) {
+  const [url, setUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Envie uma imagem (PNG, JPG ou WEBP).");
+      return;
+    }
+    setUploading(true);
+    setUrl("");
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/uploads", { method: "POST", body });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Falha no upload.");
+        return;
+      }
+      setUrl(data.url);
+      toast.success("Imagem enviada.");
+    } catch {
+      toast.error("Falha no upload. Tente novamente.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor="lesson-image">Imagem da aula (opcional)</Label>
+      <div className="flex items-start gap-3">
+        {url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={url}
+            alt="Pré-visualização"
+            className="h-16 w-24 shrink-0 rounded-md border object-cover"
+          />
+        )}
+        <input
+          id="lesson-image"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className={selectClass}
+          onChange={handleFile}
+          disabled={uploading}
+        />
+      </div>
+      {/* A URL enviada vai junto no submit do formulário. */}
+      <input type="hidden" name="imageUrl" value={url} />
+      {uploading && <p className="text-xs text-muted-foreground">Enviando…</p>}
+      <p className="text-xs text-muted-foreground">
+        Aparece acima do conteúdo, como a &quot;lâmina&quot; da aula. Máx. 20 MB.
+      </p>
+    </div>
+  );
+}
+
 function PdfUploadField({ selectClass }: { selectClass: string }) {
   const [url, setUrl] = useState("");
   const [uploading, setUploading] = useState(false);

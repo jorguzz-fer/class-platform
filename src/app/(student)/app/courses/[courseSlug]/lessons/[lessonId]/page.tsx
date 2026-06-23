@@ -191,6 +191,19 @@ export default async function LessonPlayerPage({
           )}
         </div>
 
+        {lesson.imageUrl && (
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={lesson.imageUrl}
+                alt={lesson.title}
+                className="mx-auto max-h-[28rem] w-full rounded-md object-contain"
+              />
+            </CardContent>
+          </Card>
+        )}
+
         <LessonContent
           contentType={lesson.contentType}
           videoProvider={lesson.videoProvider}

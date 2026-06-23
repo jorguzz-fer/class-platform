@@ -111,6 +111,7 @@ function parseLesson(formData: FormData) {
     videoProvider: formData.get("videoProvider") ?? undefined,
     videoSource: formData.get("videoSource") ?? undefined,
     fileUrl: formData.get("fileUrl") ?? undefined,
+    imageUrl: formData.get("imageUrl") ?? undefined,
     textContent: formData.get("textContent") ?? undefined,
     durationMinutes: formData.get("durationMinutes") || undefined,
     isPreview: formData.get("isPreview") === "on" || formData.get("isPreview") === "true",
@@ -154,6 +155,8 @@ function toLessonInput(
         ? parsed.videoUrl
         : undefined,
     textContent: data.textContent,
+    // Imagem da aula (lâmina/figura). undefined = não alterar na edição.
+    imageUrl: data.imageUrl ? data.imageUrl : undefined,
     durationMinutes: data.durationMinutes,
     isPreview: data.isPreview,
     isRequired: data.isRequired,

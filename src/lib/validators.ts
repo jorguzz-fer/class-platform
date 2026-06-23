@@ -108,6 +108,8 @@ export const lessonSchema = z.object({
   // URL do arquivo enviado (ex.: PDF de slides). Guardada em videoUrl para o
   // tipo PDF — reaproveita o campo de URL sem nova coluna no banco.
   fileUrl: z.string().trim().url("URL inválida").max(1000).optional().or(z.literal("")),
+  // Imagem opcional exibida na aula (lâmina/figura).
+  imageUrl: z.string().trim().url("URL inválida").max(1000).optional().or(z.literal("")),
   textContent: z.string().trim().max(50000).optional().or(z.literal("")),
   durationMinutes: z.coerce.number().int().min(0).max(100000).optional(),
   isPreview: z.coerce.boolean().default(false),
