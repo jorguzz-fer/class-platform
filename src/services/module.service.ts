@@ -28,6 +28,7 @@ export function listModules(organizationId: string, courseId: string) {
           isRequired: true,
           isPreview: true,
           orderIndex: true,
+          imageUrl: true,
           attachments: {
             orderBy: { createdAt: "asc" },
             select: { id: true, fileName: true, fileUrl: true },

@@ -20,6 +20,7 @@ import {
   reorderLessons,
   addLessonAttachment,
   deleteLessonAttachment,
+  setLessonImage,
 } from "@/services/lesson.service";
 
 export type ActionResult = { error?: string; fieldErrors?: Record<string, string[]> } | null;
@@ -195,6 +196,22 @@ export async function updateLessonAction(
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
 
   const ok = await updateLesson(ctx.organizationId, lessonId, toLessonInput(parsed.data));
+  if (!ok) return { error: "Aula não encontrada." };
+
+  revalidateCourse(courseId);
+  return null;
+}
+
+/** Define/remove a imagem de uma aula existente (sem abrir formulário). */
+export async function setLessonImageAction(
+  courseId: string,
+  lessonId: string,
+  imageUrl: string | null,
+): Promise<ActionResult> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "course:edit");
+
+  const ok = await setLessonImage(ctx.organizationId, lessonId, imageUrl);
   if (!ok) return { error: "Aula não encontrada." };
 
   revalidateCourse(courseId);

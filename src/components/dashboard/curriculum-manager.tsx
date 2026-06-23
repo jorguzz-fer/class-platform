@@ -36,6 +36,7 @@ import {
   createLessonAction,
   deleteLessonAction,
   reorderLessonsAction,
+  setLessonImageAction,
   type ActionResult,
 } from "@/lib/actions/curriculum-actions";
 
@@ -45,6 +46,7 @@ export type LessonView = {
   contentType: LessonContentType;
   isRequired: boolean;
   isPreview: boolean;
+  imageUrl: string | null;
   attachments: { id: string; fileName: string; fileUrl: string }[];
 };
 
@@ -270,6 +272,16 @@ export function CurriculumManager({
                         </Button>
                       </div>
                     </div>
+                    <LessonImageControl
+                      imageUrl={lesson.imageUrl}
+                      pending={pending}
+                      onChange={(url) =>
+                        handle(
+                          () => setLessonImageAction(courseId, lesson.id, url),
+                          url ? "Imagem da aula atualizada." : "Imagem removida.",
+                        )
+                      }
+                    />
                     <LessonMaterials
                       courseId={courseId}
                       lessonId={lesson.id}
@@ -478,6 +490,88 @@ function LessonForm({
  * /api/uploads (storage no servidor) e guarda a URL pública num campo oculto
  * `fileUrl`, que a action mapeia para o conteúdo da aula PDF.
  */
+/**
+ * Controle de imagem de uma aula JÁ existente (na lista): adiciona, troca ou
+ * remove a imagem sem abrir um formulário de edição.
+ */
+function LessonImageControl({
+  imageUrl,
+  pending,
+  onChange,
+}: {
+  imageUrl: string | null;
+  pending: boolean;
+  onChange: (url: string | null) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Envie uma imagem (PNG, JPG ou WEBP).");
+      return;
+    }
+    setUploading(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/uploads", { method: "POST", body });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Falha no upload.");
+        return;
+      }
+      onChange(data.url);
+    } catch {
+      toast.error("Falha no upload. Tente novamente.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
+      {imageUrl ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imageUrl} alt="" className="h-8 w-12 rounded border object-cover" />
+          <label className="cursor-pointer text-primary hover:underline">
+            {uploading ? "Enviando…" : "Trocar imagem"}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFile}
+              disabled={uploading || pending}
+            />
+          </label>
+          <button
+            type="button"
+            className="hover:text-destructive"
+            onClick={() => onChange(null)}
+            disabled={pending || uploading}
+          >
+            Remover
+          </button>
+        </>
+      ) : (
+        <label className="cursor-pointer hover:text-foreground">
+          {uploading ? "Enviando…" : "+ Imagem da aula"}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFile}
+            disabled={uploading || pending}
+          />
+        </label>
+      )}
+    </div>
+  );
+}
+
 /**
  * Imagem opcional da aula (lâmina/figura). Enviada ao storage e exibida acima
  * do conteúdo na tela do aluno. Vale para qualquer tipo de aula.

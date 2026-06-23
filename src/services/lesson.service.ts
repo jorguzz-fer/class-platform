@@ -94,6 +94,19 @@ export async function updateLesson(
   return result.count > 0;
 }
 
+/** Define/remove a imagem de uma aula (lâmina/figura). Escopado por org. */
+export async function setLessonImage(
+  organizationId: string,
+  lessonId: string,
+  imageUrl: string | null,
+) {
+  const result = await db.lesson.updateMany({
+    where: { id: lessonId, organizationId },
+    data: { imageUrl: imageUrl || null },
+  });
+  return result.count > 0;
+}
+
 export async function deleteLesson(organizationId: string, lessonId: string) {
   const result = await db.lesson.deleteMany({
     where: { id: lessonId, organizationId },
