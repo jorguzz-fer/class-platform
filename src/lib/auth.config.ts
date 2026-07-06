@@ -17,6 +17,11 @@ export const authConfig = {
   },
   session: {
     strategy: "jwt",
+    // Sessão de painel administrativo: 8h em vez do default de 30 dias do
+    // Auth.js — reduz a janela de um token roubado. `updateAge` re-emite o JWT
+    // a cada hora de atividade, mantendo o usuário logado enquanto usa.
+    maxAge: 8 * 60 * 60,
+    updateAge: 60 * 60,
   },
   callbacks: {
     // Protege rotas no middleware. Retornar false redireciona para signIn.
