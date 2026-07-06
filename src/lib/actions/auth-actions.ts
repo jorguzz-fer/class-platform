@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { registerSchema, loginSchema } from "@/lib/validators";
 import { CONSENT_DOCS } from "@/lib/consent";
 import { getClientIp } from "@/lib/request-info";
+import { rateLimit } from "@/lib/rateLimit";
 
 export type FormState = {
   error?: string;
@@ -39,6 +40,19 @@ export async function loginAction(
 
   if (!parsed.success) {
     return { fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+
+  // Rate limit anti-brute-force: por IP e por e-mail (o que estourar primeiro
+  // bloqueia). Mensagem genérica, sem revelar qual limite foi atingido.
+  const ip = (await getClientIp()) ?? "unknown";
+  const ipAllowed = (
+    await rateLimit({ key: `login:ip:${ip}`, windowSec: 900, max: 10 })
+  ).allowed;
+  const emailAllowed = (
+    await rateLimit({ key: `login:email:${parsed.data.email}`, windowSec: 3600, max: 10 })
+  ).allowed;
+  if (!ipAllowed || !emailAllowed) {
+    return { error: "Muitas tentativas. Aguarde alguns minutos e tente novamente." };
   }
 
   try {
@@ -77,6 +91,13 @@ export async function registerAction(
 
   const { name, email, password, schoolName, schoolSlug } = parsed.data;
 
+  // Rate limit anti-abuso: no máx. 5 cadastros por IP/hora (evita criação em
+  // massa de contas/escolas e sondagem de enumeração via este formulário).
+  const ip = (await getClientIp()) ?? "unknown";
+  if (!(await rateLimit({ key: `register:ip:${ip}`, windowSec: 3600, max: 5 })).allowed) {
+    return { error: "Muitas tentativas. Aguarde alguns minutos e tente novamente." };
+  }
+
   // Pré-checagem amigável de unicidade (a constraint do banco é a garantia real).
   const [existingUser, existingOrg] = await Promise.all([
     db.user.findUnique({ where: { email }, select: { id: true } }),
@@ -91,7 +112,7 @@ export async function registerAction(
   const passwordHash = await bcrypt.hash(password, 12);
   const now = new Date();
   const trialEndsAt = new Date(now.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
-  const ipAddress = await getClientIp();
+  const ipAddress = ip;
 
   try {
     await db.$transaction(async (tx) => {

@@ -7,6 +7,7 @@ import { can } from "@/lib/permissions";
 import { storage } from "@/lib/storage";
 import { getOrgPlan } from "@/services/school.service";
 import { generateThumbnailImage, isImageGenEnabled } from "@/lib/ai/image";
+import { rateLimit } from "@/lib/rateLimit";
 
 // Gera a thumbnail do curso por IA (OpenAI Images), guarda no storage e devolve
 // a URL pública. Server-side: as credenciais nunca vão ao cliente.
@@ -39,6 +40,19 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Storage não configurado no servidor." },
       { status: 503 },
+    );
+  }
+
+  // Rate limit de custo por organização — geração de imagem é cara.
+  const rl = await rateLimit({
+    key: `ai:thumbnail:${ctx.organizationId}`,
+    windowSec: 3600,
+    max: 20,
+  });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Muitas gerações de imagem. Aguarde um pouco." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
     );
   }
 

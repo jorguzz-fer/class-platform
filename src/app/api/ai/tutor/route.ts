@@ -5,6 +5,7 @@ import { getTenantContext } from "@/lib/tenant";
 import { db } from "@/lib/db";
 import { getAIProvider } from "@/lib/ai";
 import { getOrgPlan } from "@/services/school.service";
+import { rateLimit } from "@/lib/rateLimit";
 
 const bodySchema = z.object({
   courseId: z.string().min(1),
@@ -56,6 +57,19 @@ export async function POST(req: Request) {
   });
   if (!enrollment) {
     return NextResponse.json({ error: "Sem acesso a este curso." }, { status: 403 });
+  }
+
+  // Rate limit de custo por organização (chamadas ao LLM).
+  const rl = await rateLimit({
+    key: `ai:tutor:${ctx.organizationId}`,
+    windowSec: 60,
+    max: 20,
+  });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Muitas requisições de IA. Aguarde um instante." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+    );
   }
 
   let lessonTitle: string | undefined;

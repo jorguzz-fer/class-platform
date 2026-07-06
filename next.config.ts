@@ -1,11 +1,34 @@
 import type { NextConfig } from "next";
 
+// Content-Security-Policy — segunda camada de defesa contra XSS.
+// Observações:
+// - Next.js precisa de 'unsafe-inline'/'unsafe-eval' em script-src (hydration,
+//   HMR em dev). Endurecer com nonces exige middleware — fora de escopo aqui.
+// - img-src inclui o domínio público do R2 (thumbnails/uploads), se configurado.
+// - IA (OpenAI/Anthropic) roda no servidor: o cliente não faz connect direto,
+//   por isso connect-src fica em 'self'.
+const r2Public = process.env.R2_PUBLIC_URL?.replace(/\/$/, "") ?? "";
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  `img-src 'self' data: blob:${r2Public ? ` ${r2Public}` : ""}`,
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "frame-ancestors 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+]
+  .join("; ");
+
 // Cabeçalhos de segurança aplicados a todas as respostas.
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-DNS-Prefetch-Control", value: "on" },
+  { key: "Content-Security-Policy", value: contentSecurityPolicy },
   {
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=()",
