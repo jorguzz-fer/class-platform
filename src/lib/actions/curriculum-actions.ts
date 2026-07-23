@@ -20,6 +20,7 @@ import {
   reorderLessons,
   addLessonAttachment,
   deleteLessonAttachment,
+  setLessonImage,
 } from "@/services/lesson.service";
 
 export type ActionResult = { error?: string; fieldErrors?: Record<string, string[]> } | null;
@@ -110,6 +111,8 @@ function parseLesson(formData: FormData) {
     contentType: formData.get("contentType") ?? undefined,
     videoProvider: formData.get("videoProvider") ?? undefined,
     videoSource: formData.get("videoSource") ?? undefined,
+    fileUrl: formData.get("fileUrl") ?? undefined,
+    imageUrl: formData.get("imageUrl") ?? undefined,
     textContent: formData.get("textContent") ?? undefined,
     durationMinutes: formData.get("durationMinutes") || undefined,
     isPreview: formData.get("isPreview") === "on" || formData.get("isPreview") === "true",
@@ -134,15 +137,27 @@ function toLessonInput(
     ? provider!.parse(data.videoSource!)
     : { videoId: null, videoUrl: null };
 
+  // Aulas de arquivo (PDF/slides ou Áudio): a URL do upload fica em videoUrl.
+  // undefined = "não alterar" (não apaga o arquivo já salvo ao editar outros).
+  const isFile = data.contentType === "PDF" || data.contentType === "AUDIO";
+
   return {
     title: data.title,
     description: data.description,
     contentType: data.contentType,
     // undefined = manter o que já existe (não sobrescreve na edição).
-    videoProvider: hasNewSource ? provider!.id : undefined,
-    videoId: hasNewSource ? parsed.videoId : undefined,
-    videoUrl: hasNewSource ? parsed.videoUrl : undefined,
+    videoProvider: isFile ? null : hasNewSource ? provider!.id : undefined,
+    videoId: isFile ? null : hasNewSource ? parsed.videoId : undefined,
+    videoUrl: isFile
+      ? data.fileUrl
+        ? data.fileUrl
+        : undefined
+      : hasNewSource
+        ? parsed.videoUrl
+        : undefined,
     textContent: data.textContent,
+    // Imagem da aula (lâmina/figura). undefined = não alterar na edição.
+    imageUrl: data.imageUrl ? data.imageUrl : undefined,
     durationMinutes: data.durationMinutes,
     isPreview: data.isPreview,
     isRequired: data.isRequired,
@@ -181,6 +196,22 @@ export async function updateLessonAction(
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
 
   const ok = await updateLesson(ctx.organizationId, lessonId, toLessonInput(parsed.data));
+  if (!ok) return { error: "Aula não encontrada." };
+
+  revalidateCourse(courseId);
+  return null;
+}
+
+/** Define/remove a imagem de uma aula existente (sem abrir formulário). */
+export async function setLessonImageAction(
+  courseId: string,
+  lessonId: string,
+  imageUrl: string | null,
+): Promise<ActionResult> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "course:edit");
+
+  const ok = await setLessonImage(ctx.organizationId, lessonId, imageUrl);
   if (!ok) return { error: "Aula não encontrada." };
 
   revalidateCourse(courseId);

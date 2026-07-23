@@ -34,6 +34,8 @@ export async function createCourseAction(
     level: formData.get("level") ?? undefined,
     visibility: formData.get("visibility") ?? undefined,
     category: formData.get("category"),
+    thumbnailUrl: formData.get("thumbnailUrl"),
+    price: formData.get("price") || undefined,
   });
   if (!parsed.success) {
     return { fieldErrors: parsed.error.flatten().fieldErrors };

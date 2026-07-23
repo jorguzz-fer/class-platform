@@ -20,6 +20,7 @@ model User {
   id           String    @id @default(cuid())
   name         String
   email        String    @unique
+  cpf          String? // CPF do aluno (11 dígitos, sem máscara)
   phone        String? // WhatsApp/telefone (E.164), opcional
   passwordHash String?
   avatarUrl    String?
@@ -114,6 +115,7 @@ model School {
   description     String?
   logoUrl         String?
   faviconUrl      String?
+  heroImageUrl    String?
   primaryColor    String?
   secondaryColor  String?
   backgroundColor String?
@@ -208,6 +210,7 @@ model Lesson {
   videoUrl        String?
   videoId         String?
   textContent     String?
+  imageUrl        String?
   durationMinutes Int?
   orderIndex      Int
   isPreview       Boolean           @default(false)

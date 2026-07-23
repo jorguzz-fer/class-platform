@@ -45,9 +45,22 @@ export function SelfEnrollForm({
       <input type="hidden" name="courseSlug" value={courseSlug} />
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="name">Seu nome</Label>
-        <Input id="name" name="name" autoComplete="name" required />
+        <Label htmlFor="name">Nome completo</Label>
+        <Input id="name" name="name" autoComplete="name" placeholder="Nome e sobrenome" required />
         <FieldError messages={state?.fieldErrors?.name} />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="cpf">CPF</Label>
+        <Input
+          id="cpf"
+          name="cpf"
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder="Somente números"
+          required
+        />
+        <FieldError messages={state?.fieldErrors?.cpf} />
       </div>
 
       <div className="flex flex-col gap-1.5">

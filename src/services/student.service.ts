@@ -9,9 +9,33 @@ import type { CreateStudentInput, UpdateStudentInput } from "@/lib/validators";
  * partem sempre das memberships da organização.
  */
 
-export async function listStudents(organizationId: string) {
+export async function listStudents(
+  organizationId: string,
+  filters?: { q?: string; status?: string },
+) {
+  const q = filters?.q?.trim();
+  const active =
+    filters?.status === "active"
+      ? true
+      : filters?.status === "inactive"
+        ? false
+        : undefined;
   const members = await db.organizationMember.findMany({
-    where: { organizationId, role: "STUDENT" },
+    where: {
+      organizationId,
+      role: "STUDENT",
+      user: {
+        ...(active !== undefined ? { isActive: active } : {}),
+        ...(q
+          ? {
+              OR: [
+                { name: { contains: q, mode: "insensitive" as const } },
+                { email: { contains: q, mode: "insensitive" as const } },
+              ],
+            }
+          : {}),
+      },
+    },
     orderBy: { createdAt: "desc" },
     include: {
       user: {
@@ -19,6 +43,7 @@ export async function listStudents(organizationId: string) {
           id: true,
           name: true,
           email: true,
+          cpf: true,
           isActive: true,
           createdAt: true,
           _count: { select: { enrollments: { where: { organizationId } } } },
@@ -75,6 +100,7 @@ export async function createStudent(
     data: {
       name: input.name,
       email: input.email,
+      cpf: input.cpf,
       role: "STUDENT",
       memberships: { create: { organizationId, role: "STUDENT" } },
     },

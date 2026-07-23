@@ -25,6 +25,7 @@ export default async function BrandingSettingsPage() {
           description: school?.description,
           logoUrl: school?.logoUrl,
           faviconUrl: school?.faviconUrl,
+          heroImageUrl: school?.heroImageUrl,
           primaryColor: school?.primaryColor,
           secondaryColor: school?.secondaryColor,
           backgroundColor: school?.backgroundColor,

@@ -31,6 +31,7 @@ export async function updateBrandingAction(
     description: formData.get("description"),
     logoUrl: formData.get("logoUrl"),
     faviconUrl: formData.get("faviconUrl"),
+    heroImageUrl: formData.get("heroImageUrl"),
     primaryColor: formData.get("primaryColor"),
     secondaryColor: formData.get("secondaryColor"),
     backgroundColor: formData.get("backgroundColor"),

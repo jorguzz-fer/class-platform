@@ -5,17 +5,18 @@ import { redirect } from "next/navigation";
 
 import { requireSuperAdmin } from "@/lib/tenant";
 import { audit } from "@/lib/audit";
-import { adminUpdateUserSchema } from "@/lib/validators";
+import { adminUpdateUserSchema, adminResetPasswordSchema } from "@/lib/validators";
 import {
   setOrganizationStatus,
   setOrganizationPlan,
   updateUserAsAdmin,
+  adminResetUserPassword,
   type OrgStatus,
 } from "@/services/admin.service";
 
 export type AdminResult = { error?: string } | null;
 export type AdminFormResult =
-  | { error?: string; fieldErrors?: Record<string, string[]> }
+  | { ok?: boolean; error?: string; fieldErrors?: Record<string, string[]> }
   | null;
 
 export async function setOrganizationStatusAction(
@@ -106,4 +107,35 @@ export async function updateUserAction(
 
   revalidatePath("/admin/users");
   redirect("/admin/users");
+}
+
+/**
+ * Redefine a senha de um usuário pelo painel da plataforma (SUPER_ADMIN).
+ * Permanece na mesma página (sem redirect) e devolve `ok` para a UI confirmar.
+ * A nova senha NUNCA é registrada no audit (apenas o fato de ter sido trocada).
+ */
+export async function resetUserPasswordAction(
+  userId: string,
+  _prev: AdminFormResult,
+  formData: FormData,
+): Promise<AdminFormResult> {
+  const ctx = await requireSuperAdmin();
+
+  const parsed = adminResetPasswordSchema.safeParse({
+    password: formData.get("password"),
+  });
+  if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
+
+  const ok = await adminResetUserPassword(userId, parsed.data.password);
+  if (!ok) return { error: "Usuário não encontrado." };
+
+  await audit({
+    organizationId: null,
+    userId: ctx.userId,
+    action: "admin.user_password_reset",
+    entityType: "User",
+    entityId: userId,
+  });
+
+  return { ok: true };
 }

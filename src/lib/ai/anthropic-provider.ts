@@ -4,6 +4,9 @@ import type {
   AIProvider,
   CourseOutline,
   CourseOutlineInput,
+  DocumentCourseInput,
+  DocumentCourseOutline,
+  PdfCourseInput,
   GeneratedQuiz,
   GeneratedQuestionSet,
   QuestionsFromTextInput,
@@ -24,10 +27,110 @@ import type {
  */
 const MODEL = "claude-opus-4-8";
 
+// Geração de curso a partir de documento/PDF é uma tarefa longa (transcreve o
+// material e escreve o conteúdo de todas as aulas). Usa um modelo mais rápido
+// por padrão para reduzir latência — configurável por env. As tarefas menores
+// continuam no Opus.
+const COURSE_MODEL = process.env.ANTHROPIC_COURSE_MODEL || "claude-sonnet-4-6";
+
 // System prompt estável (cacheável) — conteúdo volátil vai nas mensagens.
 const SYSTEM_INSTRUCTOR =
   "Você é um especialista em design instrucional para cursos online em português do Brasil. " +
   "Gere conteúdo claro, prático e bem estruturado.";
+
+// Schema do curso gerado a partir de documento/PDF (cada aula carrega o conteúdo
+// em texto). Reutilizado pelas gerações por texto e por PDF.
+const COURSE_DOC_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    title: { type: "string" },
+    subtitle: { type: "string" },
+    description: { type: "string" },
+    modules: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          title: { type: "string" },
+          description: { type: "string" },
+          lessons: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                title: { type: "string" },
+                content: { type: "string" },
+              },
+              required: ["title", "content"],
+            },
+          },
+        },
+        required: ["title", "description", "lessons"],
+      },
+    },
+  },
+  required: ["title", "subtitle", "description", "modules"],
+};
+
+// Igual ao schema de documento, mas cada aula referencia a lâmina de origem do
+// PDF (slidePage), para mostrar o slide original na tela da aula.
+const COURSE_PDF_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    title: { type: "string" },
+    subtitle: { type: "string" },
+    description: { type: "string" },
+    modules: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          title: { type: "string" },
+          description: { type: "string" },
+          lessons: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                title: { type: "string" },
+                content: { type: "string" },
+                slidePage: {
+                  type: "integer",
+                  description: "Número da lâmina/página do PDF (1-based) que originou esta aula.",
+                },
+              },
+              required: ["title", "content", "slidePage"],
+            },
+          },
+        },
+        required: ["title", "description", "lessons"],
+      },
+    },
+  },
+  required: ["title", "subtitle", "description", "modules"],
+};
+
+// Instrução comum para organizar material em curso (texto ou PDF).
+function courseFromMaterialInstruction(level?: string, audience?: string): string {
+  return (
+    "Organize o material em um curso estruturado (título, subtítulo, descrição " +
+    "e módulos com aulas). Cada aula deve ter um título e um CONTEÚDO de texto " +
+    "OBJETIVO e CONCISO (em torno de 2 a 5 frases, no máximo um parágrafo curto) " +
+    "redigido a partir do material — o aluno também verá a lâmina/material " +
+    "original, então NÃO escreva textos longos. Não invente fatos que não " +
+    "estejam no material. Quando for um PDF de slides/imagens, RESUMA o ponto " +
+    "principal de cada lâmina. Divida em módulos coerentes, cada um com 2 a 6 " +
+    "aulas." +
+    (level ? ` Nível: ${level}.` : "") +
+    (audience ? ` Público: ${audience}.` : "")
+  );
+}
 
 export class AnthropicAIProvider implements AIProvider {
   readonly name = "anthropic";
@@ -93,6 +196,76 @@ export class AnthropicAIProvider implements AIProvider {
     });
 
     return this.extractJson<CourseOutline>(message);
+  }
+
+  async generateCourseFromDocument(
+    input: DocumentCourseInput,
+  ): Promise<DocumentCourseOutline> {
+    // Limita o texto enviado (contexto/custo). 80k caracteres cobrem documentos
+    // longos sem estourar o orçamento de tokens.
+    const content = input.content.slice(0, 80000);
+
+    const message = await this.client.messages.create({
+      model: COURSE_MODEL,
+      // Saída enxuta (conteúdo conciso) + sem thinking: muito mais rápido,
+      // evitando esperas de minutos e timeout do proxy.
+      max_tokens: 8000,
+      system: [
+        { type: "text", text: SYSTEM_INSTRUCTOR, cache_control: { type: "ephemeral" } },
+      ],
+      output_config: { format: { type: "json_schema", schema: COURSE_DOC_SCHEMA } },
+      messages: [
+        {
+          role: "user",
+          content:
+            courseFromMaterialInstruction(input.level, input.audience) +
+            `\n\nDocumento:\n${content}`,
+        },
+      ],
+    });
+
+    return this.extractJson<DocumentCourseOutline>(message);
+  }
+
+  async generateCourseFromPdf(
+    input: PdfCourseInput,
+  ): Promise<DocumentCourseOutline> {
+    // O Claude lê o PDF nativamente (visão): cobre PDFs de texto E de imagens/
+    // slides — neste caso transcrevendo o conteúdo das lâminas.
+    const message = await this.client.messages.create({
+      model: COURSE_MODEL,
+      // Saída enxuta (conteúdo conciso) + sem thinking: muito mais rápido,
+      // evitando esperas de minutos e timeout do proxy.
+      max_tokens: 8000,
+      system: [
+        { type: "text", text: SYSTEM_INSTRUCTOR, cache_control: { type: "ephemeral" } },
+      ],
+      output_config: { format: { type: "json_schema", schema: COURSE_PDF_SCHEMA } },
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "document",
+              source: {
+                type: "base64",
+                media_type: "application/pdf",
+                data: input.pdfBase64,
+              },
+            },
+            {
+              type: "text",
+              text:
+                courseFromMaterialInstruction(input.level, input.audience) +
+                " Para CADA aula, informe em slidePage o número da lâmina/página " +
+                "do PDF (1-based) de onde o conteúdo foi tirado.",
+            },
+          ],
+        },
+      ],
+    });
+
+    return this.extractJson<DocumentCourseOutline>(message);
   }
 
   async generateQuiz(input: LessonSummaryInput): Promise<GeneratedQuiz> {

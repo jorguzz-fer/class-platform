@@ -15,6 +15,9 @@ import { getStudentLessonRating } from "@/services/rating.service";
 import { getOrgPlan } from "@/services/school.service";
 import { listLessonComments } from "@/services/community.service";
 import { LessonCompleteButton } from "@/components/student/lesson-complete-button";
+import { LessonAutoComplete } from "@/components/student/lesson-auto-complete";
+import { PdfSlideViewer } from "@/components/student/pdf-slide-viewer";
+import { LessonAudioPlayer } from "@/components/student/lesson-audio-player";
 import { TutorChat } from "@/components/student/tutor-chat";
 import { LessonComments } from "@/components/student/lesson-comments";
 import { CourseOutlineNav } from "@/components/student/course-outline-nav";
@@ -26,6 +29,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+/** Extrai a referência da lâmina (PDF + página) de um videoUrl "<pdf>#page=N". */
+function parseSlideRef(
+  videoUrl: string | null,
+): { url: string; page: number } | null {
+  if (!videoUrl) return null;
+  const idx = videoUrl.indexOf("#page=");
+  if (idx === -1) return null;
+  const url = videoUrl.slice(0, idx);
+  const page = parseInt(videoUrl.slice(idx + 6), 10);
+  if (!url.toLowerCase().includes(".pdf") || !Number.isFinite(page)) return null;
+  return { url, page };
+}
 
 /** Renderiza o conteúdo da aula conforme o tipo. */
 function LessonContent({
@@ -63,13 +79,43 @@ function LessonContent({
     }
   }
 
-  if (contentType === "TEXT" && textContent) {
+  if (contentType === "PDF" && videoUrl) {
+    return <PdfSlideViewer url={videoUrl} />;
+  }
+
+  if (contentType === "AUDIO" && videoUrl) {
     return (
-      <Card>
-        <CardContent className="prose prose-sm max-w-none whitespace-pre-wrap py-6">
-          {textContent}
-        </CardContent>
-      </Card>
+      <LessonAudioPlayer
+        url={videoUrl}
+        lessonId={lessonId}
+        courseSlug={courseSlug}
+        completed={completed}
+      />
+    );
+  }
+
+  if (contentType === "TEXT") {
+    // Aula de texto pode referenciar a lâmina original do PDF que a gerou
+    // (videoUrl = "<pdf>#page=N"): mostramos o slide acima do texto.
+    const slide = parseSlideRef(videoUrl);
+    return (
+      <div className="flex flex-col gap-4">
+        {slide && (
+          <div>
+            <p className="mb-2 text-sm font-medium text-muted-foreground">
+              Lâmina original
+            </p>
+            <PdfSlideViewer url={slide.url} fixedPage={slide.page} />
+          </div>
+        )}
+        {textContent && (
+          <Card>
+            <CardContent className="prose prose-sm max-w-none whitespace-pre-wrap py-6">
+              {textContent}
+            </CardContent>
+          </Card>
+        )}
+      </div>
     );
   }
 
@@ -94,7 +140,7 @@ export default async function LessonPlayerPage({
   const data = await getLessonForPlayer(ctx.userId, lessonId);
   if (!data) notFound();
 
-  const { lesson, attachments, completed, nextLessonId, prevLessonId, position } =
+  const { lesson, attachments, completed, nextLessonId, nextQuizId, prevLessonId, position } =
     data;
 
   const { modules, progressByLesson, lockedModuleIds } = await getCoursePlayer(
@@ -130,6 +176,10 @@ export default async function LessonPlayerPage({
   const nextHref = nextLessonId
     ? `/app/courses/${courseSlug}/lessons/${nextLessonId}`
     : null;
+  // Próximo módulo bloqueado: encaminha para a prova que destrava (evita 404).
+  const quizHref = nextQuizId
+    ? `/app/courses/${courseSlug}/quiz/${nextQuizId}`
+    : null;
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 lg:flex-row lg:items-start">
@@ -153,6 +203,19 @@ export default async function LessonPlayerPage({
           )}
         </div>
 
+        {lesson.imageUrl && (
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={lesson.imageUrl}
+                alt={lesson.title}
+                className="mx-auto max-h-[28rem] w-full rounded-md object-contain"
+              />
+            </CardContent>
+          </Card>
+        )}
+
         <LessonContent
           contentType={lesson.contentType}
           videoProvider={lesson.videoProvider}
@@ -163,6 +226,12 @@ export default async function LessonPlayerPage({
           courseSlug={courseSlug}
           completed={completed}
         />
+
+        {/* Aulas de leitura (texto/PDF) concluem ao abrir — não têm "fim" como
+            o vídeo. Evita que o aluno passe pelas aulas e a prova não libere. */}
+        {!completed && (lesson.contentType === "TEXT" || lesson.contentType === "PDF") && (
+          <LessonAutoComplete lessonId={lesson.id} courseSlug={courseSlug} />
+        )}
 
         {/* Navegação anterior/próxima (sempre visível) */}
         <div className="flex items-center justify-between gap-2">
@@ -183,6 +252,14 @@ export default async function LessonPlayerPage({
               className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1")}
             >
               Próxima
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          ) : quizHref ? (
+            <Link
+              href={quizHref}
+              className={cn(buttonVariants({ size: "sm" }), "gap-1")}
+            >
+              Fazer a prova do módulo
               <ChevronRight className="h-4 w-4" />
             </Link>
           ) : (

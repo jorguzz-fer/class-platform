@@ -2,6 +2,9 @@ import type {
   AIProvider,
   CourseOutline,
   CourseOutlineInput,
+  DocumentCourseInput,
+  DocumentCourseOutline,
+  PdfCourseInput,
   GeneratedQuiz,
   GeneratedQuestionSet,
   GeneratedQuestionDraft,
@@ -48,6 +51,73 @@ export class MockAIProvider implements AIProvider {
           lessons: [
             { title: "Otimização", description: "Desempenho e qualidade." },
             { title: "Projeto final", description: "Consolidando o aprendizado." },
+          ],
+        },
+      ],
+    };
+  }
+
+  async generateCourseFromDocument(
+    input: DocumentCourseInput,
+  ): Promise<DocumentCourseOutline> {
+    // Mock: quebra o texto em blocos e os distribui como aulas. Sem API key, o
+    // resultado é simples — serve para testar o fluxo, não para produção.
+    const text = input.content.trim();
+    const paragraphs = text
+      .split(/\n{2,}/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+    const chunks = paragraphs.length > 0 ? paragraphs : [text];
+
+    // Agrupa em até 4 aulas por módulo.
+    const perLesson = Math.max(1, Math.ceil(chunks.length / 6));
+    const lessons = [];
+    for (let i = 0; i < chunks.length; i += perLesson) {
+      const slice = chunks.slice(i, i + perLesson);
+      lessons.push({
+        title: `Aula ${lessons.length + 1}`,
+        content: slice.join("\n\n"),
+      });
+    }
+
+    return {
+      title: "Curso a partir do documento",
+      subtitle: "Conteúdo organizado automaticamente (rascunho)",
+      description: text.slice(0, 200),
+      modules: [
+        {
+          title: "Conteúdo do documento",
+          description: "Aulas geradas a partir do material enviado.",
+          lessons: lessons.length > 0 ? lessons : [{ title: "Aula 1", content: text }],
+        },
+      ],
+    };
+  }
+
+  async generateCourseFromPdf(
+    input: PdfCourseInput,
+  ): Promise<DocumentCourseOutline> {
+    // O mock não tem visão: não consegue ler o PDF. Devolve um rascunho mínimo
+    // explicando que é preciso configurar a IA real (ANTHROPIC_API_KEY).
+    const audience = input.audience ? ` Público: ${input.audience}.` : "";
+    return {
+      title: "Curso a partir de PDF",
+      subtitle: "Configure a IA para ler o documento",
+      description:
+        "A leitura de PDF (inclusive de imagens/slides) exige a IA real. " +
+        "Configure ANTHROPIC_API_KEY para gerar o curso a partir do arquivo." +
+        audience,
+      modules: [
+        {
+          title: "Conteúdo do PDF",
+          description: "Será preenchido quando a IA real estiver configurada.",
+          lessons: [
+            {
+              title: "Aula 1",
+              content:
+                "Sem a IA real configurada, não é possível transcrever o PDF.",
+              slidePage: 1,
+            },
           ],
         },
       ],

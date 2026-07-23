@@ -20,6 +20,21 @@ const passwordSchema = z
   .min(8, "A senha deve ter pelo menos 8 caracteres")
   .max(72, "A senha deve ter no máximo 72 caracteres"); // limite do bcrypt
 
+// Nome completo: exige ao menos nome + sobrenome.
+const fullNameSchema = z
+  .string()
+  .trim()
+  .min(5, "Informe o nome completo")
+  .max(120)
+  .refine((v) => v.split(/\s+/).length >= 2, "Informe nome e sobrenome");
+
+// CPF (validação só de formato): normaliza para 11 dígitos.
+const cpfSchema = z
+  .string()
+  .trim()
+  .transform((v) => v.replace(/\D/g, ""))
+  .refine((v) => v.length === 11, "CPF deve ter 11 dígitos");
+
 export const registerSchema = z.object({
   name: z.string().trim().min(2, "Informe seu nome").max(120),
   email: z.string().trim().toLowerCase().email("E-mail inválido").max(160),
@@ -65,9 +80,6 @@ export const createCourseSchema = z.object({
   level: z.enum(courseLevels).default("ALL_LEVELS"),
   visibility: z.enum(courseVisibilities).default("PRIVATE"),
   category: z.string().trim().max(80).optional().or(z.literal("")),
-});
-
-export const updateCourseSchema = createCourseSchema.extend({
   thumbnailUrl: z.string().trim().url("URL inválida").max(500).optional().or(z.literal("")),
   price: z.coerce
     .number({ invalid_type_error: "Preço inválido" })
@@ -75,6 +87,9 @@ export const updateCourseSchema = createCourseSchema.extend({
     .max(1_000_000)
     .optional(),
 });
+
+// Mesma forma da criação (título, mídia, preço etc.).
+export const updateCourseSchema = createCourseSchema;
 
 export type CreateCourseInput = z.infer<typeof createCourseSchema>;
 export type UpdateCourseInput = z.infer<typeof updateCourseSchema>;
@@ -105,6 +120,11 @@ export const lessonSchema = z.object({
   // (src/lib/video) normaliza em videoId/videoUrl no momento de salvar.
   videoProvider: z.string().trim().max(40).optional().or(z.literal("")),
   videoSource: z.string().trim().max(500).optional().or(z.literal("")),
+  // URL do arquivo enviado (ex.: PDF de slides). Guardada em videoUrl para o
+  // tipo PDF — reaproveita o campo de URL sem nova coluna no banco.
+  fileUrl: z.string().trim().url("URL inválida").max(1000).optional().or(z.literal("")),
+  // Imagem opcional exibida na aula (lâmina/figura).
+  imageUrl: z.string().trim().url("URL inválida").max(1000).optional().or(z.literal("")),
   textContent: z.string().trim().max(50000).optional().or(z.literal("")),
   durationMinutes: z.coerce.number().int().min(0).max(100000).optional(),
   isPreview: z.coerce.boolean().default(false),
@@ -183,7 +203,8 @@ export type ApiCourseImportInput = z.infer<typeof apiCourseImportSchema>;
 // ---------------------------------------------------------------------------
 
 export const createStudentSchema = z.object({
-  name: z.string().trim().min(2, "Informe o nome").max(120),
+  name: fullNameSchema,
+  cpf: cpfSchema,
   email: z.string().trim().toLowerCase().email("E-mail inválido").max(160),
 });
 
@@ -201,7 +222,8 @@ export const createEnrollmentSchema = z.object({
 export const selfEnrollSchema = z.object({
   schoolSlug: z.string().trim().min(1),
   courseSlug: z.string().trim().min(1),
-  name: z.string().trim().min(2, "Informe seu nome").max(120),
+  name: fullNameSchema,
+  cpf: cpfSchema,
   email: z.string().trim().toLowerCase().email("E-mail inválido").max(160),
   password: passwordSchema,
 });
@@ -227,6 +249,12 @@ export const adminUpdateUserSchema = z.object({
 });
 export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;
 
+// Redefinição de senha de um usuário pelo painel da plataforma (SUPER_ADMIN).
+export const adminResetPasswordSchema = z.object({
+  password: passwordSchema,
+});
+export type AdminResetPasswordInput = z.infer<typeof adminResetPasswordSchema>;
+
 export type CreateStudentInput = z.infer<typeof createStudentSchema>;
 export type UpdateStudentInput = z.infer<typeof updateStudentSchema>;
 export type CreateEnrollmentInput = z.infer<typeof createEnrollmentSchema>;
@@ -249,6 +277,7 @@ export const schoolBrandingSchema = z.object({
   description: z.string().trim().max(2000).optional().or(z.literal("")),
   logoUrl: optionalUrl,
   faviconUrl: optionalUrl,
+  heroImageUrl: optionalUrl,
   primaryColor: hexColor,
   secondaryColor: hexColor,
   backgroundColor: hexColor,

@@ -9,12 +9,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CourseStatusBadge } from "@/components/dashboard/course-status-badge";
 import { ShareCourseLinkCompact } from "@/components/dashboard/share-course-link-compact";
 import { CatalogLink } from "@/components/dashboard/catalog-link";
+import { CourseFilters } from "@/components/dashboard/course-filters";
 import { cn } from "@/lib/utils";
 
-export default async function CoursesPage() {
+export default async function CoursesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; status?: string }>;
+}) {
   const { organizationId } = await requireOrg();
+  const { q = "", status = "" } = await searchParams;
+  const hasFilters = q.trim() !== "" || status !== "";
   const [courses, school] = await Promise.all([
-    listCourses(organizationId),
+    listCourses(organizationId, { q, status }),
     getSchool(organizationId),
   ]);
   const subdomain = school?.subdomain ?? null;
@@ -50,21 +57,40 @@ export default async function CoursesPage() {
         </CardContent>
       </Card>
 
+      <CourseFilters q={q} status={status} />
+
       {courses.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
             <BookOpen className="h-10 w-10 text-muted-foreground" />
-            <p className="font-medium">Nenhum curso ainda</p>
-            <p className="text-sm text-muted-foreground">
-              Crie seu primeiro curso para começar.
-            </p>
-            <Link
-              href="/dashboard/courses/new"
-              className={cn(buttonVariants(), "mt-2 gap-2")}
-            >
-              <Plus className="h-4 w-4" />
-              Novo curso
-            </Link>
+            {hasFilters ? (
+              <>
+                <p className="font-medium">Nenhum curso encontrado</p>
+                <p className="text-sm text-muted-foreground">
+                  Tente outro termo de busca ou status.
+                </p>
+                <Link
+                  href="/dashboard/courses"
+                  className={cn(buttonVariants({ variant: "outline" }), "mt-2 gap-2")}
+                >
+                  Limpar filtros
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="font-medium">Nenhum curso ainda</p>
+                <p className="text-sm text-muted-foreground">
+                  Crie seu primeiro curso para começar.
+                </p>
+                <Link
+                  href="/dashboard/courses/new"
+                  className={cn(buttonVariants(), "mt-2 gap-2")}
+                >
+                  <Plus className="h-4 w-4" />
+                  Novo curso
+                </Link>
+              </>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -104,12 +130,10 @@ export default async function CoursesPage() {
                     <td className="px-4 py-3">
                       <ShareCourseLinkCompact
                         subdomain={subdomain}
+                        courseId={course.id}
                         courseSlug={course.slug}
-                        shareable={
-                          course.status === "PUBLISHED" &&
-                          (course.visibility === "PUBLIC" ||
-                            course.visibility === "UNLISTED")
-                        }
+                        status={course.status}
+                        visibility={course.visibility}
                       />
                     </td>
                   </tr>

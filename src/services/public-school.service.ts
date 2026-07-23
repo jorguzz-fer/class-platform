@@ -18,6 +18,7 @@ export async function getPublicSchool(slug: string) {
       name: true,
       description: true,
       logoUrl: true,
+      heroImageUrl: true,
       primaryColor: true,
     },
   });

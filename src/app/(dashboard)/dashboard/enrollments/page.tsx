@@ -1,29 +1,54 @@
 import Link from "next/link";
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, Download } from "lucide-react";
 
 import { requireOrg } from "@/lib/tenant";
 import {
   listEnrollments,
   listPendingEnrollments,
 } from "@/services/enrollment.service";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EnrollmentStatusBadge } from "@/components/dashboard/enrollment-status-badge";
 import { PendingEnrollmentActions } from "@/components/dashboard/pending-enrollment-actions";
+import { ListFilters } from "@/components/dashboard/list-filters";
+import { cn } from "@/lib/utils";
 
-export default async function EnrollmentsPage() {
+export default async function EnrollmentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; status?: string }>;
+}) {
   const { organizationId } = await requireOrg();
+  const { q = "", status = "" } = await searchParams;
+  const hasFilters = q.trim() !== "" || status !== "";
   const [enrollments, pending] = await Promise.all([
-    listEnrollments(organizationId),
+    listEnrollments(organizationId, { q, status }),
     listPendingEnrollments(organizationId),
   ]);
 
+  const exportParams = new URLSearchParams();
+  if (q.trim()) exportParams.set("q", q.trim());
+  if (status) exportParams.set("status", status);
+  const exportHref = `/api/reports/enrollments${
+    exportParams.toString() ? `?${exportParams.toString()}` : ""
+  }`;
+
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Matrículas</h1>
-        <p className="text-muted-foreground">
-          Todas as matrículas da sua escola.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Matrículas</h1>
+          <p className="text-muted-foreground">
+            Todas as matrículas da sua escola.
+          </p>
+        </div>
+        <a
+          href={exportHref}
+          className={cn(buttonVariants({ variant: "outline" }), "w-fit gap-2")}
+        >
+          <Download className="h-4 w-4" />
+          Exportar CSV
+        </a>
       </div>
 
       {pending.length > 0 && (
@@ -70,14 +95,44 @@ export default async function EnrollmentsPage() {
         </Card>
       )}
 
+      <ListFilters
+        q={q}
+        status={status}
+        searchPlaceholder="Buscar por aluno ou curso…"
+        statuses={[
+          { value: "", label: "Todos os status" },
+          { value: "ACTIVE", label: "Ativa" },
+          { value: "COMPLETED", label: "Concluída" },
+          { value: "EXPIRED", label: "Expirada" },
+          { value: "CANCELED", label: "Cancelada" },
+        ]}
+      />
+
       {enrollments.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
             <GraduationCap className="h-10 w-10 text-muted-foreground" />
-            <p className="font-medium">Nenhuma matrícula ainda</p>
-            <p className="text-sm text-muted-foreground">
-              Matricule alunos pela página de cada aluno.
-            </p>
+            {hasFilters ? (
+              <>
+                <p className="font-medium">Nenhuma matrícula encontrada</p>
+                <p className="text-sm text-muted-foreground">
+                  Tente outro termo de busca ou status.
+                </p>
+                <Link
+                  href="/dashboard/enrollments"
+                  className="mt-2 text-sm text-primary hover:underline"
+                >
+                  Limpar filtros
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="font-medium">Nenhuma matrícula ainda</p>
+                <p className="text-sm text-muted-foreground">
+                  Matricule alunos pela página de cada aluno.
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       ) : (

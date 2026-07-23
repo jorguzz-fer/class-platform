@@ -12,9 +12,22 @@ import type { CreateCourseInput, UpdateCourseInput } from "@/lib/validators";
  * cliente para escopo de tenant.
  */
 
-export function listCourses(organizationId: string) {
+const COURSE_STATUSES = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
+
+export function listCourses(
+  organizationId: string,
+  filters?: { q?: string; status?: string },
+) {
+  const q = filters?.q?.trim();
+  const status = COURSE_STATUSES.includes(filters?.status as CourseStatus)
+    ? (filters!.status as CourseStatus)
+    : undefined;
   return db.course.findMany({
-    where: { organizationId },
+    where: {
+      organizationId,
+      ...(status ? { status } : {}),
+      ...(q ? { title: { contains: q, mode: "insensitive" } } : {}),
+    },
     orderBy: { createdAt: "desc" },
     include: {
       instructor: { select: { id: true, name: true } },
@@ -80,6 +93,8 @@ export async function createCourse(
       level: input.level,
       visibility: input.visibility,
       category: input.category || null,
+      thumbnailUrl: input.thumbnailUrl || null,
+      price: input.price != null ? new Prisma.Decimal(input.price) : null,
       status: "DRAFT",
     },
   });

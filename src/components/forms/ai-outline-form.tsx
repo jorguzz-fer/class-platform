@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Loader2 } from "lucide-react";
 
 import { generateCourseOutlineAction, type AIResult } from "@/lib/actions/ai-actions";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,11 @@ function SubmitButton() {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" className="gap-2" disabled={pending}>
-      <Sparkles className="h-4 w-4" />
+      {pending ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Sparkles className="h-4 w-4" />
+      )}
       {pending ? "Gerando..." : "Gerar curso com IA"}
     </Button>
   );

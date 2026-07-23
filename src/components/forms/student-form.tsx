@@ -32,9 +32,20 @@ export function NewStudentForm({
   return (
     <form action={formAction} className="flex max-w-md flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <Label htmlFor="name">Nome do aluno</Label>
-        <Input id="name" name="name" required />
+        <Label htmlFor="name">Nome completo</Label>
+        <Input id="name" name="name" placeholder="Nome e sobrenome" required />
         <FieldError messages={state?.fieldErrors?.name} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="cpf">CPF</Label>
+        <Input
+          id="cpf"
+          name="cpf"
+          inputMode="numeric"
+          placeholder="Somente números"
+          required
+        />
+        <FieldError messages={state?.fieldErrors?.cpf} />
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">E-mail</Label>

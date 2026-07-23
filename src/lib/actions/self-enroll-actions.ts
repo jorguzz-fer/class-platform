@@ -31,6 +31,7 @@ export async function selfEnrollAction(
     schoolSlug: formData.get("schoolSlug"),
     courseSlug: formData.get("courseSlug"),
     name: formData.get("name"),
+    cpf: formData.get("cpf"),
     email: formData.get("email"),
     password: formData.get("password"),
   });

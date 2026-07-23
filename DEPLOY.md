@@ -43,12 +43,23 @@ Em **Environment Variables**, defina (mínimo para subir):
 | `RESEND_API_KEY` | — | Sem ela, e-mail só loga no servidor |
 | `EMAIL_FROM` | — | Remetente verificado no Resend |
 | `ANTHROPIC_API_KEY` | — | Sem ela, IA usa provider mock |
+| `OPENAI_API_KEY` | — | Habilita gerar thumbnail por IA (OpenAI Images) |
 | `WHATSAPP_API_URL` / `WHATSAPP_API_TOKEN` | — | Gateway de WhatsApp |
 | `CRON_SECRET` | — | Habilita as rotas de automação |
 | `PAYMENT_PROVIDER` | — | Vazio = checkout mock |
 | `PAYMENT_WEBHOOK_SECRET` | — | Habilita `/api/payments/webhook` |
+| `R2_ACCOUNT_ID` | — | Cloudflare R2 (upload de PDF/slides) — do endpoint S3 |
+| `R2_ACCESS_KEY_ID` | — | Token de API do R2 (Object Read & Write) |
+| `R2_SECRET_ACCESS_KEY` | — | Segredo do token de API do R2 |
+| `R2_BUCKET` | — | Nome do bucket R2 |
+| `R2_PUBLIC_URL` | — | URL pública do bucket (R2.dev ou domínio custom) |
 
 > **Nunca** commite valores reais. Defina-os apenas no painel do Coolify.
+>
+> **Upload de arquivos (R2):** as 5 variáveis `R2_*` ativam o upload de PDF de
+> slides (aula tipo PDF). Sem elas, o upload fica desabilitado e o formulário
+> orienta a configurar. O bucket precisa de **acesso público** (URL de
+> desenvolvimento R2 ou Custom Domain) para o aluno abrir o material.
 
 ## 4. Deploy
 
