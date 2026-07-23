@@ -17,6 +17,7 @@ import { listLessonComments } from "@/services/community.service";
 import { LessonCompleteButton } from "@/components/student/lesson-complete-button";
 import { LessonAutoComplete } from "@/components/student/lesson-auto-complete";
 import { PdfSlideViewer } from "@/components/student/pdf-slide-viewer";
+import { LessonAudioPlayer } from "@/components/student/lesson-audio-player";
 import { TutorChat } from "@/components/student/tutor-chat";
 import { LessonComments } from "@/components/student/lesson-comments";
 import { CourseOutlineNav } from "@/components/student/course-outline-nav";
@@ -80,6 +81,17 @@ function LessonContent({
 
   if (contentType === "PDF" && videoUrl) {
     return <PdfSlideViewer url={videoUrl} />;
+  }
+
+  if (contentType === "AUDIO" && videoUrl) {
+    return (
+      <LessonAudioPlayer
+        url={videoUrl}
+        lessonId={lessonId}
+        courseSlug={courseSlug}
+        completed={completed}
+      />
+    );
   }
 
   if (contentType === "TEXT") {

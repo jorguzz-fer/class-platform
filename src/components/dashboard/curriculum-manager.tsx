@@ -456,6 +456,7 @@ function LessonForm({
 
       {usesVideo && <VideoSourceFields />}
       {type === "PDF" && <PdfUploadField selectClass={selectClass} />}
+      {type === "AUDIO" && <AudioUploadField selectClass={selectClass} />}
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="lesson-text">Conteúdo em texto (opcional)</Label>
@@ -633,6 +634,66 @@ function LessonImageField({ selectClass }: { selectClass: string }) {
       {uploading && <p className="text-xs text-muted-foreground">Enviando…</p>}
       <p className="text-xs text-muted-foreground">
         Aparece acima do conteúdo, como a &quot;lâmina&quot; da aula. Máx. 20 MB.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Upload de áudio da aula. Envia ao storage e guarda a URL em `fileUrl`
+ * (mapeada para videoUrl no servidor). O aluno ouve num player com controles.
+ */
+function AudioUploadField({ selectClass }: { selectClass: string }) {
+  const [url, setUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("audio/")) {
+      toast.error("Envie um arquivo de áudio (MP3, M4A, OGG ou WAV).");
+      return;
+    }
+    setUploading(true);
+    setUrl("");
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/uploads", { method: "POST", body });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Falha no upload.");
+        return;
+      }
+      setUrl(data.url);
+      toast.success("Áudio enviado.");
+    } catch {
+      toast.error("Falha no upload. Tente novamente.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor="lesson-audio">Arquivo de áudio</Label>
+      <input
+        id="lesson-audio"
+        type="file"
+        accept="audio/*"
+        className={selectClass}
+        onChange={handleFile}
+        disabled={uploading}
+      />
+      <input type="hidden" name="fileUrl" value={url} />
+      {uploading && <p className="text-xs text-muted-foreground">Enviando…</p>}
+      {url && !uploading && (
+        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+          Áudio enviado.
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Formatos: MP3, M4A, OGG ou WAV. Máx. 50 MB.
       </p>
     </div>
   );

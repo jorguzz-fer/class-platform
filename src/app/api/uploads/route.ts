@@ -10,7 +10,7 @@ import { storage } from "@/lib/storage";
 // Server Actions). Aceita PDF (slides) e imagens (thumbnail do curso). As
 // credenciais do storage ficam no servidor; o cliente recebe só a URL pública.
 
-const MAX_BYTES = 20 * 1024 * 1024; // 20 MB
+const MAX_BYTES = 50 * 1024 * 1024; // 50 MB (áudios podem ser maiores)
 
 export const dynamic = "force-dynamic";
 
@@ -27,9 +27,17 @@ function detectType(bytes: Uint8Array): { ext: string; contentType: string } | n
     return { ext: "png", contentType: "image/png" };
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff)
     return { ext: "jpg", contentType: "image/jpeg" };
-  if (ascii(0, 4) === "RIFF" && ascii(8, 4) === "WEBP")
-    return { ext: "webp", contentType: "image/webp" };
+  if (ascii(0, 4) === "RIFF") {
+    if (ascii(8, 4) === "WEBP") return { ext: "webp", contentType: "image/webp" };
+    if (ascii(8, 4) === "WAVE") return { ext: "wav", contentType: "audio/wav" };
+  }
   if (ascii(0, 4) === "GIF8") return { ext: "gif", contentType: "image/gif" };
+  // Áudio: OGG, MP3 (ID3 ou frame sync), M4A/AAC (mp4 "ftyp").
+  if (ascii(0, 4) === "OggS") return { ext: "ogg", contentType: "audio/ogg" };
+  if (ascii(0, 3) === "ID3") return { ext: "mp3", contentType: "audio/mpeg" };
+  if (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0)
+    return { ext: "mp3", contentType: "audio/mpeg" };
+  if (ascii(4, 4) === "ftyp") return { ext: "m4a", contentType: "audio/mp4" };
   // ICO (favicon): 00 00 01 00.
   if (bytes[0] === 0x00 && bytes[1] === 0x00 && bytes[2] === 0x01 && bytes[3] === 0x00)
     return { ext: "ico", contentType: "image/x-icon" };
@@ -74,7 +82,7 @@ export async function POST(request: Request) {
   const type = detectType(new Uint8Array(buffer.slice(0, 256)));
   if (!type) {
     return NextResponse.json(
-      { error: "Formato não suportado. Envie PDF, PNG, JPG, WEBP, SVG ou ICO." },
+      { error: "Formato não suportado. Envie PDF, imagem, SVG/ICO ou áudio (MP3/M4A/OGG/WAV)." },
       { status: 415 },
     );
   }

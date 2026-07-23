@@ -137,18 +137,18 @@ function toLessonInput(
     ? provider!.parse(data.videoSource!)
     : { videoId: null, videoUrl: null };
 
-  // Aula PDF (slides): a URL do arquivo enviado fica em videoUrl. undefined =
-  // "não alterar" (não apaga o PDF já salvo ao editar outros campos).
-  const isPdf = data.contentType === "PDF";
+  // Aulas de arquivo (PDF/slides ou Áudio): a URL do upload fica em videoUrl.
+  // undefined = "não alterar" (não apaga o arquivo já salvo ao editar outros).
+  const isFile = data.contentType === "PDF" || data.contentType === "AUDIO";
 
   return {
     title: data.title,
     description: data.description,
     contentType: data.contentType,
     // undefined = manter o que já existe (não sobrescreve na edição).
-    videoProvider: isPdf ? null : hasNewSource ? provider!.id : undefined,
-    videoId: isPdf ? null : hasNewSource ? parsed.videoId : undefined,
-    videoUrl: isPdf
+    videoProvider: isFile ? null : hasNewSource ? provider!.id : undefined,
+    videoId: isFile ? null : hasNewSource ? parsed.videoId : undefined,
+    videoUrl: isFile
       ? data.fileUrl
         ? data.fileUrl
         : undefined
