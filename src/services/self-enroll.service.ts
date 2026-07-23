@@ -72,6 +72,7 @@ export async function selfEnroll(
       data: {
         name: input.name,
         email: input.email,
+        cpf: input.cpf,
         passwordHash,
         role: "STUDENT",
         memberships: {

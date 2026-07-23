@@ -43,6 +43,7 @@ export async function listStudents(
           id: true,
           name: true,
           email: true,
+          cpf: true,
           isActive: true,
           createdAt: true,
           _count: { select: { enrollments: { where: { organizationId } } } },
@@ -99,6 +100,7 @@ export async function createStudent(
     data: {
       name: input.name,
       email: input.email,
+      cpf: input.cpf,
       role: "STUDENT",
       memberships: { create: { organizationId, role: "STUDENT" } },
     },

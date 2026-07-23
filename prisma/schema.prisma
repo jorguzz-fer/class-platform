@@ -20,6 +20,7 @@ model User {
   id           String    @id @default(cuid())
   name         String
   email        String    @unique
+  cpf          String? // CPF do aluno (11 dígitos, sem máscara)
   phone        String? // WhatsApp/telefone (E.164), opcional
   passwordHash String?
   avatarUrl    String?

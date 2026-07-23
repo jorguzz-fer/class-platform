@@ -7,6 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ListFilters } from "@/components/dashboard/list-filters";
+import { formatCpf } from "@/lib/cpf";
 import { cn } from "@/lib/utils";
 
 export default async function StudentsPage({
@@ -77,6 +78,7 @@ export default async function StudentsPage({
               <thead className="border-b text-left text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 font-medium">Nome</th>
+                  <th className="px-4 py-3 font-medium">CPF</th>
                   <th className="px-4 py-3 font-medium">E-mail</th>
                   <th className="px-4 py-3 font-medium">Matrículas</th>
                   <th className="px-4 py-3 font-medium">Status</th>
@@ -92,6 +94,9 @@ export default async function StudentsPage({
                       >
                         {student.name}
                       </Link>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {formatCpf(student.cpf)}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{student.email}</td>
                     <td className="px-4 py-3">{student._count.enrollments}</td>

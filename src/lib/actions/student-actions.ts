@@ -38,6 +38,7 @@ export async function createStudentAction(
 
   const parsed = createStudentSchema.safeParse({
     name: formData.get("name"),
+    cpf: formData.get("cpf"),
     email: formData.get("email"),
   });
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
