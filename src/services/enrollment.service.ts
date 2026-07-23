@@ -36,7 +36,7 @@ export function listEnrollments(
     },
     orderBy: { enrolledAt: "desc" },
     include: {
-      student: { select: { id: true, name: true, email: true } },
+      student: { select: { id: true, name: true, email: true, cpf: true } },
       course: { select: { id: true, title: true, status: true } },
     },
   });

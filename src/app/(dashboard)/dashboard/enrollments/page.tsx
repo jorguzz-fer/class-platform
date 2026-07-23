@@ -1,15 +1,17 @@
 import Link from "next/link";
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, Download } from "lucide-react";
 
 import { requireOrg } from "@/lib/tenant";
 import {
   listEnrollments,
   listPendingEnrollments,
 } from "@/services/enrollment.service";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EnrollmentStatusBadge } from "@/components/dashboard/enrollment-status-badge";
 import { PendingEnrollmentActions } from "@/components/dashboard/pending-enrollment-actions";
 import { ListFilters } from "@/components/dashboard/list-filters";
+import { cn } from "@/lib/utils";
 
 export default async function EnrollmentsPage({
   searchParams,
@@ -24,13 +26,29 @@ export default async function EnrollmentsPage({
     listPendingEnrollments(organizationId),
   ]);
 
+  const exportParams = new URLSearchParams();
+  if (q.trim()) exportParams.set("q", q.trim());
+  if (status) exportParams.set("status", status);
+  const exportHref = `/api/reports/enrollments${
+    exportParams.toString() ? `?${exportParams.toString()}` : ""
+  }`;
+
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Matrículas</h1>
-        <p className="text-muted-foreground">
-          Todas as matrículas da sua escola.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Matrículas</h1>
+          <p className="text-muted-foreground">
+            Todas as matrículas da sua escola.
+          </p>
+        </div>
+        <a
+          href={exportHref}
+          className={cn(buttonVariants({ variant: "outline" }), "w-fit gap-2")}
+        >
+          <Download className="h-4 w-4" />
+          Exportar CSV
+        </a>
       </div>
 
       {pending.length > 0 && (
