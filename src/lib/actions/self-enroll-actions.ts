@@ -47,18 +47,26 @@ export async function selfEnrollAction(
     return { error: result.error };
   }
 
-  // Avisa o dono que a pessoa começou o curso (best-effort) antes de entrar.
-  await onEnrollmentStarted(
-    result.organizationId,
-    result.studentName,
-    result.courseTitle,
-  );
+  // Curso pago: o comprador vai ao checkout; o dono só é avisado quando o
+  // pagamento for confirmado (matrícula criada pelo webhook). Curso gratuito:
+  // avisa que a pessoa começou agora.
+  if (!result.requiresPayment) {
+    await onEnrollmentStarted(
+      result.organizationId,
+      result.studentName,
+      result.courseTitle,
+    );
+  }
+
+  const redirectTo = result.requiresPayment
+    ? `/checkout/${result.courseSlug}`
+    : "/app";
 
   try {
     await signIn("credentials", {
       email: parsed.data.email,
       password: parsed.data.password,
-      redirectTo: "/app",
+      redirectTo,
     });
     return null;
   } catch (error) {

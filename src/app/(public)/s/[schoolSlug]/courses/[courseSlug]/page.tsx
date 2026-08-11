@@ -28,6 +28,7 @@ export default async function PublicCoursePage({
   const totalLessons = modules.reduce((sum, m) => sum + m.lessons.length, 0);
   const cover = course.coverUrl ?? course.thumbnailUrl;
   const level = levelLabel(course.level);
+  const isPaid = Number(course.price ?? 0) > 0;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -129,16 +130,31 @@ export default async function PublicCoursePage({
           <Card className="lg:sticky lg:top-20">
             <CardContent className="flex flex-col gap-3 p-6">
               <div className="flex items-baseline justify-between">
-                <span className="text-lg font-semibold">Inscreva-se</span>
+                <span className="text-lg font-semibold">
+                  {isPaid ? "Comprar curso" : "Inscreva-se"}
+                </span>
                 <Badge variant="secondary">
                   {formatPrice(course.price, course.currency)}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground">
-                Crie sua conta e comece <strong>agora mesmo</strong> — acesso
-                imediato ao curso, sem espera.
+                {isPaid ? (
+                  <>
+                    Crie sua conta e finalize o pagamento (PIX, boleto ou cartão).
+                    O acesso é liberado assim que o pagamento é confirmado.
+                  </>
+                ) : (
+                  <>
+                    Crie sua conta e comece <strong>agora mesmo</strong> — acesso
+                    imediato ao curso, sem espera.
+                  </>
+                )}
               </p>
-              <SelfEnrollForm schoolSlug={schoolSlug} courseSlug={courseSlug} />
+              <SelfEnrollForm
+                schoolSlug={schoolSlug}
+                courseSlug={courseSlug}
+                isPaid={isPaid}
+              />
               <p className="text-center text-xs text-muted-foreground">
                 Já tem conta?{" "}
                 <Link href="/login" className="font-medium text-primary hover:underline">

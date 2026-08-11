@@ -13,11 +13,15 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 
-function SubmitButton() {
+function SubmitButton({ isPaid }: { isPaid: boolean }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? "Entrando..." : "Inscrever-se e começar"}
+      {pending
+        ? "Entrando..."
+        : isPaid
+          ? "Criar conta e ir para o pagamento"
+          : "Inscrever-se e começar"}
     </Button>
   );
 }
@@ -30,9 +34,11 @@ function FieldError({ messages }: { messages?: string[] }) {
 export function SelfEnrollForm({
   schoolSlug,
   courseSlug,
+  isPaid = false,
 }: {
   schoolSlug: string;
   courseSlug: string;
+  isPaid?: boolean;
 }) {
   const [state, formAction] = useActionState<SelfEnrollState, FormData>(
     selfEnrollAction,
@@ -82,7 +88,7 @@ export function SelfEnrollForm({
 
       {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
 
-      <SubmitButton />
+      <SubmitButton isPaid={isPaid} />
 
       <p className="text-center text-xs text-muted-foreground">
         Já tem conta?{" "}

@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 
 import { db } from "@/lib/db";
-import { paymentProvider } from "@/lib/payment";
+import { resolveProviderForOrg, isMockPaymentAllowed } from "@/lib/payment";
 import { onEnrollmentCreated } from "@/services/events.service";
 
 /**
@@ -91,9 +91,15 @@ export async function createOrder(
 
   const course = await db.course.findFirst({
     where: { id: courseId, organizationId },
-    select: { title: true },
+    select: { title: true, slug: true },
   });
   if (!course) return { ok: false, error: "Curso não encontrado." };
+
+  const buyer = await db.user.findUnique({
+    where: { id: buyerId },
+    select: { name: true, email: true, cpf: true },
+  });
+  if (!buyer) return { ok: false, error: "Comprador não encontrado." };
 
   const order = await db.order.create({
     data: {
@@ -108,17 +114,58 @@ export async function createOrder(
     },
   });
 
-  const session = await paymentProvider.createCheckoutSession({
-    orderId: order.id,
-    amount: quoted.quote.finalAmount,
-    currency: quoted.quote.currency,
-    method: input.method,
-    description: course.title,
-  });
+  // Cupom de 100% (ou curso zerado): libera na hora, sem passar pelo gateway.
+  if (quoted.quote.finalAmount <= 0) {
+    const paid = await markOrderPaid(order.id);
+    if (!paid.ok) return { ok: false, error: paid.error };
+    return {
+      ok: true,
+      orderId: order.id,
+      checkoutUrl: `/app/courses/${course.slug}`,
+      finalAmount: 0,
+    };
+  }
+
+  const { provider, isReal } = await resolveProviderForOrg(organizationId);
+
+  // Sem gateway real configurado: em produção, curso pago não pode ser vendido
+  // (fail-closed). Em dev, cai no mock para permitir testar o fluxo.
+  if (!isReal && !isMockPaymentAllowed()) {
+    return {
+      ok: false,
+      error:
+        "Pagamentos ainda não configurados por esta escola. Tente novamente mais tarde.",
+    };
+  }
+
+  // Asaas exige CPF do pagador para PIX/boleto. Novos alunos já têm CPF; um
+  // aluno antigo sem CPF precisa completar o cadastro antes de comprar.
+  if (isReal && !buyer.cpf) {
+    return {
+      ok: false,
+      error: "Complete seu CPF no perfil antes de finalizar a compra.",
+    };
+  }
+
+  let session;
+  try {
+    session = await provider.createCheckoutSession({
+      orderId: order.id,
+      amount: quoted.quote.finalAmount,
+      currency: quoted.quote.currency,
+      method: input.method,
+      description: course.title,
+      buyer: { id: buyerId, name: buyer.name, email: buyer.email, cpf: buyer.cpf },
+    });
+  } catch (e) {
+    await db.order.update({ where: { id: order.id }, data: { status: "FAILED" } });
+    const msg = e instanceof Error ? e.message : "Falha ao iniciar o pagamento.";
+    return { ok: false, error: msg };
+  }
 
   await db.order.update({
     where: { id: order.id },
-    data: { gatewayProvider: paymentProvider.name, gatewayRef: session.gatewayRef },
+    data: { gatewayProvider: provider.name, gatewayRef: session.gatewayRef },
   });
 
   return {
