@@ -188,6 +188,7 @@ type CourseDefaults = {
   category?: string | null;
   thumbnailUrl?: string | null;
   price?: string | null;
+  workloadHours?: string | null;
 };
 
 export function CourseForm({
@@ -284,17 +285,36 @@ export function CourseForm({
             defaultUrl={defaults?.thumbnailUrl ?? ""}
             error={state?.fieldErrors?.thumbnailUrl}
           />
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="price">Preço (BRL)</Label>
-            <Input
-              id="price"
-              name="price"
-              type="number"
-              step="0.01"
-              min="0"
-              defaultValue={defaults?.price ?? ""}
-            />
-            <FieldError messages={state?.fieldErrors?.price} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="price">Preço (BRL)</Label>
+              <Input
+                id="price"
+                name="price"
+                type="number"
+                step="0.01"
+                min="0"
+                defaultValue={defaults?.price ?? ""}
+              />
+              <FieldError messages={state?.fieldErrors?.price} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="workloadHours">Carga horária (horas)</Label>
+              <Input
+                id="workloadHours"
+                name="workloadHours"
+                type="number"
+                step="1"
+                min="0"
+                placeholder="Ex.: 20"
+                defaultValue={defaults?.workloadHours ?? ""}
+              />
+              <FieldError messages={state?.fieldErrors?.workloadHours} />
+              <p className="text-xs text-muted-foreground">
+                Exibida no certificado. Se vazia, é estimada pela duração das
+                aulas.
+              </p>
+            </div>
           </div>
         </>
       )}

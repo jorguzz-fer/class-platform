@@ -95,6 +95,7 @@ export async function createCourse(
       category: input.category || null,
       thumbnailUrl: input.thumbnailUrl || null,
       price: input.price != null ? new Prisma.Decimal(input.price) : null,
+      workloadHours: input.workloadHours ?? null,
       status: "DRAFT",
     },
   });
@@ -123,6 +124,7 @@ export async function updateCourse(
       category: input.category || null,
       thumbnailUrl: input.thumbnailUrl || null,
       price: input.price != null ? new Prisma.Decimal(input.price) : null,
+      workloadHours: input.workloadHours ?? null,
     },
   });
 }
