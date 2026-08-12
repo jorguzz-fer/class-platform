@@ -42,12 +42,23 @@ function dueDateISO(daysAhead: number): string {
 export function createAsaasProvider(config: AsaasConfig): PaymentProvider {
   const base = BASE_URL[config.environment];
 
+  // A API key vai num header HTTP (ASCII/Latin-1). Se houver caractere fora
+  // disso (ex.: colagem com caractere invisível/acentuado), o fetch quebraria
+  // com um erro críptico de ByteString. Falhamos cedo com mensagem acionável.
+  const apiKey = config.apiKey;
+  const keyIsValid = /^[\x21-\x7E]+$/.test(apiKey);
+
   async function call<T>(path: string, init?: RequestInit): Promise<T> {
+    if (!keyIsValid) {
+      throw new Error(
+        "API Key da Asaas inválida (caractere não suportado). Recadastre a chave em Configurações → Vendas.",
+      );
+    }
     const res = await fetch(`${base}${path}`, {
       ...init,
       headers: {
         "Content-Type": "application/json",
-        access_token: config.apiKey,
+        access_token: apiKey,
         "User-Agent": "ClassOS",
         ...(init?.headers ?? {}),
       },

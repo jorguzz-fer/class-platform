@@ -74,8 +74,8 @@ export async function savePaymentAccount(
   const acc = await ensureAccount(organizationId);
 
   let apiKeyEnc = acc.apiKeyEnc;
-  const newKey = input.apiKey?.trim();
-  if (newKey) {
+  const rawKey = input.apiKey?.trim();
+  if (rawKey) {
     if (!isVaultConfigured()) {
       return {
         ok: false,
@@ -83,7 +83,19 @@ export async function savePaymentAccount(
           "Cofre de credenciais indisponível: configure CREDENTIALS_SECRET no servidor.",
       };
     }
-    apiKeyEnc = encryptSecret(newKey);
+    // Remove espaços e caracteres invisíveis (zero-width, BOM) que costumam
+    // vir junto ao colar. A chave da Asaas é ASCII imprimível sem espaços — se
+    // sobrar algo fora disso, é erro de cópia (ex.: caractere acentuado oculto)
+    // e recusamos, pois iria quebrar o header HTTP na hora de cobrar.
+    const cleanKey = rawKey.replace(/[\s​-‍﻿]/g, "");
+    if (!/^[\x21-\x7E]+$/.test(cleanKey)) {
+      return {
+        ok: false,
+        error:
+          "A API Key contém caracteres inválidos (provável erro ao copiar). Copie a chave novamente direto do painel da Asaas e cole sem espaços.",
+      };
+    }
+    apiKeyEnc = encryptSecret(cleanKey);
   }
 
   // Não deixa habilitar sem chave configurada (evita cobrança quebrada).
