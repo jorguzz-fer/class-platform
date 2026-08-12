@@ -86,6 +86,13 @@ export const createCourseSchema = z.object({
     .min(0, "Preço não pode ser negativo")
     .max(1_000_000)
     .optional(),
+  // Carga horária (horas) exibida no certificado. Opcional.
+  workloadHours: z.coerce
+    .number({ invalid_type_error: "Carga horária inválida" })
+    .int()
+    .min(0)
+    .max(100000)
+    .optional(),
 });
 
 // Mesma forma da criação (título, mídia, preço etc.).
@@ -404,6 +411,16 @@ export const checkoutSchema = z.object({
 
 export type CreateCouponInput = z.infer<typeof createCouponSchema>;
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
+
+// Configuração de pagamentos por escola (Asaas). A API key é opcional no envio:
+// vazia = manter a atual (não sobrescreve com em branco).
+export const paymentSettingsSchema = z.object({
+  environment: z.enum(["SANDBOX", "PRODUCTION"]),
+  enabled: z.boolean(),
+  apiKey: z.string().trim().max(400).optional().or(z.literal("")),
+});
+
+export type PaymentSettingsInput = z.infer<typeof paymentSettingsSchema>;
 
 // ---------------------------------------------------------------------------
 // Provas / avaliações de módulo (Fase A)

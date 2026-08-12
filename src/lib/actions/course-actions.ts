@@ -36,6 +36,7 @@ export async function createCourseAction(
     category: formData.get("category"),
     thumbnailUrl: formData.get("thumbnailUrl"),
     price: formData.get("price") || undefined,
+    workloadHours: formData.get("workloadHours") || undefined,
   });
   if (!parsed.success) {
     return { fieldErrors: parsed.error.flatten().fieldErrors };
@@ -63,6 +64,7 @@ export async function updateCourseAction(
     category: formData.get("category"),
     thumbnailUrl: formData.get("thumbnailUrl"),
     price: formData.get("price") || undefined,
+    workloadHours: formData.get("workloadHours") || undefined,
   });
   if (!parsed.success) {
     return { fieldErrors: parsed.error.flatten().fieldErrors };

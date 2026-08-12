@@ -126,6 +126,7 @@ export default async function CourseDetailPage({
               category: course.category,
               thumbnailUrl: course.thumbnailUrl,
               price: course.price?.toString() ?? "",
+              workloadHours: course.workloadHours?.toString() ?? "",
             }}
           />
         </CardContent>

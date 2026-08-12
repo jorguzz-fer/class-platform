@@ -22,6 +22,9 @@ export type SelfEnrollResult =
       schoolName: string;
       studentName: string;
       courseTitle: string;
+      courseSlug: string;
+      /** Curso pago: conta criada, mas o acesso só é liberado após o pagamento. */
+      requiresPayment: boolean;
     }
   | { ok: false; code: "EXISTING_EMAIL" | "NOT_FOUND"; error: string };
 
@@ -46,11 +49,14 @@ export async function selfEnroll(
       status: "PUBLISHED",
       visibility: { in: ["PUBLIC", "UNLISTED"] },
     },
-    select: { id: true, title: true },
+    select: { id: true, title: true, slug: true, price: true },
   });
   if (!course) {
     return { ok: false, code: "NOT_FOUND", error: "Curso não encontrado." };
   }
+
+  // Curso pago: cria a conta, mas NÃO matricula — o acesso vem após o pagamento.
+  const requiresPayment = Number(course.price ?? 0) > 0;
 
   const existing = await db.user.findUnique({
     where: { email: input.email },
@@ -80,15 +86,19 @@ export async function selfEnroll(
         },
       },
     });
-    await tx.enrollment.create({
-      data: {
-        organizationId: school.organizationId,
-        courseId: course.id,
-        studentId: user.id,
-        // Inscrição aberta: acesso imediato, sem aprovação do dono.
-        status: "ACTIVE",
-      },
-    });
+    // Curso gratuito: acesso imediato. Curso pago: sem matrícula agora — o
+    // comprador é levado ao checkout e o acesso é liberado quando o pagamento
+    // for confirmado pelo webhook.
+    if (!requiresPayment) {
+      await tx.enrollment.create({
+        data: {
+          organizationId: school.organizationId,
+          courseId: course.id,
+          studentId: user.id,
+          status: "ACTIVE",
+        },
+      });
+    }
   });
 
   return {
@@ -97,5 +107,7 @@ export async function selfEnroll(
     schoolName: school.name,
     studentName: input.name,
     courseTitle: course.title,
+    courseSlug: course.slug,
+    requiresPayment,
   };
 }

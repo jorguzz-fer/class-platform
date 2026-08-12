@@ -1,15 +1,24 @@
+import { resolvePaymentAccount } from "@/services/payment-account.service";
+import { createAsaasProvider } from "@/lib/payment/asaas";
+
 /**
- * Abstração de gateway de pagamento (Fase 2).
+ * Abstração de gateway de pagamento — POR TENANT (Fase 2, Asaas).
  *
- * Seleção por ambiente, sem segredos no código:
- * - Com PAYMENT_PROVIDER + credenciais → provider real (a implementar por gateway).
- * - Caso contrário → provider mock, que cria uma "sessão de checkout" simulada
- *   e confirma o pagamento via uma URL de checkout interna — permite testar todo
- *   o fluxo (incluindo webhook de confirmação) sem custo nem credencial.
- *
- * O contrato é mínimo e provider-agnóstico: criar uma sessão de pagamento para
- * um pedido e validar a assinatura do webhook de confirmação.
+ * Cada escola pluga a própria conta Asaas (credencial cifrada no banco). O
+ * provider é resolvido por organização:
+ * - Escola com Asaas configurado e habilitado → provider real (cobra na conta
+ *   dela; o dinheiro cai direto para a escola).
+ * - Caso contrário → provider mock, que simula o checkout para desenvolvimento.
+ *   Em produção o mock é bloqueado (fail-closed): curso pago sem gateway não é
+ *   vendido.
  */
+
+export interface CheckoutBuyer {
+  id: string;
+  name: string;
+  email: string;
+  cpf: string | null;
+}
 
 export interface CheckoutSessionInput {
   orderId: string;
@@ -17,6 +26,7 @@ export interface CheckoutSessionInput {
   currency: string;
   method: "PIX" | "CARD" | "BOLETO";
   description: string;
+  buyer: CheckoutBuyer;
 }
 
 export interface CheckoutSession {
@@ -41,30 +51,43 @@ const mockPaymentProvider: PaymentProvider = {
   name: "mock",
   async createCheckoutSession(input) {
     const gatewayRef = `mock_${input.orderId}`;
-    // Página de checkout simulada (confirma via POST no webhook interno).
     const checkoutUrl = `${APP_URL}/checkout/order/${input.orderId}/pay`;
     return { checkoutUrl, gatewayRef };
   },
 };
 
-function resolveProvider(): PaymentProvider {
-  // Espaço para plugar Stripe/Mercado Pago/Pagar.me etc. via env no futuro.
-  // Mantém o mock como padrão seguro enquanto não há credenciais.
-  return mockPaymentProvider;
-}
+export type ResolvedProvider = {
+  provider: PaymentProvider;
+  /** True quando é um gateway real (cobra de verdade). */
+  isReal: boolean;
+};
 
-export const paymentProvider: PaymentProvider = resolveProvider();
-
-export function isRealPaymentEnabled(): boolean {
-  return !!process.env.PAYMENT_PROVIDER;
+/**
+ * Resolve o provider para uma organização. Se a escola configurou a Asaas,
+ * usa a conta dela (credencial decifrada em memória, nunca persistida em claro).
+ * Caso contrário, cai no mock.
+ */
+export async function resolveProviderForOrg(
+  organizationId: string,
+): Promise<ResolvedProvider> {
+  const account = await resolvePaymentAccount(organizationId);
+  if (account) {
+    return {
+      provider: createAsaasProvider({
+        apiKey: account.apiKey,
+        environment: account.environment,
+      }),
+      isReal: true,
+    };
+  }
+  return { provider: mockPaymentProvider, isReal: false };
 }
 
 /**
- * A confirmação SIMULADA de pagamento (mock) só é permitida quando NENHUM sinal
- * de pagamento real está configurado. Fail-closed: basta `PAYMENT_PROVIDER` OU
- * `PAYMENT_WEBHOOK_SECRET` estarem presentes para desabilitar o mock — evita que
- * um deploy com config parcial deixe um bypass de pagamento aberto.
+ * A confirmação SIMULADA de pagamento (mock) só é permitida FORA de produção.
+ * Em produção, a confirmação vem sempre pelo webhook do gateway real — nunca
+ * por uma ação interna (fail-closed contra bypass de pagamento).
  */
 export function isMockPaymentAllowed(): boolean {
-  return !process.env.PAYMENT_PROVIDER && !process.env.PAYMENT_WEBHOOK_SECRET;
+  return process.env.NODE_ENV !== "production";
 }

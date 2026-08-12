@@ -92,6 +92,7 @@ model Organization {
   comments     Comment[]
   coupons      Coupon[]
   orders       Order[]
+  paymentAccount PaymentAccount?
 }
 
 model OrganizationMember {
@@ -149,6 +150,9 @@ model Course {
   price           Decimal?
   currency        String           @default("BRL")
   durationMinutes Int?
+  // Carga horária (horas) exibida no certificado. Se nula, cai no cálculo por
+  // durationMinutes das aulas.
+  workloadHours   Int?
   level           CourseLevel      @default(ALL_LEVELS)
   category        String?
   publishedAt     DateTime?
@@ -804,8 +808,39 @@ model Order {
 }
 
 // ----------------------------------------------------------------------------
+// Pagamentos por tenant: cada escola pluga a própria conta do gateway (Asaas).
+// A API Key fica CIFRADA (AES-256-GCM) — nunca em texto puro. O webhookToken é
+// o valor que a escola configura no gateway e que validamos no webhook.
+// ----------------------------------------------------------------------------
+
+model PaymentAccount {
+  id             String             @id @default(cuid())
+  organizationId String             @unique
+  provider       PaymentGateway     @default(ASAAS)
+  environment    PaymentEnvironment @default(SANDBOX)
+  // API key cifrada (opaca). null enquanto a escola não configurou.
+  apiKeyEnc      String?
+  // Token que a escola cola no webhook do gateway (validado no header).
+  webhookToken   String
+  enabled        Boolean            @default(false)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------------------------------
 // Enums
 // ----------------------------------------------------------------------------
+
+enum PaymentGateway {
+  ASAAS
+}
+
+enum PaymentEnvironment {
+  SANDBOX
+  PRODUCTION
+}
 
 enum UserRole {
   SUPER_ADMIN

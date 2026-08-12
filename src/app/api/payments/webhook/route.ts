@@ -1,49 +1,52 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { db } from "@/lib/db";
+import { getWebhookToken } from "@/services/payment-account.service";
 import { markOrderPaid } from "@/services/order.service";
 
 /**
- * Webhook de confirmação de pagamento (Fase 2).
+ * Webhook de confirmação de pagamento — Asaas, POR TENANT.
  *
- * Em produção, o gateway chama este endpoint quando o pagamento é confirmado.
- * Protegido por assinatura HMAC-SHA256 com PAYMENT_WEBHOOK_SECRET no header
- * X-Payment-Signature. Sem o secret configurado, a rota fica desabilitada (503).
+ * A Asaas chama este endpoint (URL única para todas as escolas) quando um
+ * pagamento muda de estado. Cada escola configura, na própria conta Asaas, um
+ * "Token de autenticação" que a Asaas envia no header `asaas-access-token`.
  *
- * Confirmar o pagamento aqui libera o acesso (matrícula automática) de forma
+ * Como resolvemos a escola: o `externalReference` da cobrança é o nosso
+ * orderId; pelo pedido chegamos à organização e ao token dela, que comparamos
+ * (timing-safe) com o header. Assim um token não vale para a escola errada.
+ *
+ * Confirmar o pagamento libera o acesso (matrícula automática) de forma
  * idempotente — re-entregas do webhook não duplicam matrícula.
  */
+
+export const dynamic = "force-dynamic";
+
 const bodySchema = z.object({
-  orderId: z.string().min(1),
-  event: z.literal("payment.confirmed"),
+  event: z.string(),
+  payment: z.object({
+    externalReference: z.string().min(1).nullable().optional(),
+    status: z.string().optional(),
+  }),
 });
 
-function verifySignature(secret: string, rawBody: string, signature: string | null): boolean {
-  if (!signature) return false;
-  const expected = "sha256=" + createHmac("sha256", secret).update(rawBody).digest("hex");
+// Eventos/estados que significam "pago" (PIX/boleto recebido, cartão confirmado).
+const PAID_EVENTS = new Set(["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"]);
+const PAID_STATUSES = new Set(["CONFIRMED", "RECEIVED", "RECEIVED_IN_CASH"]);
+
+function tokenMatches(expected: string, received: string | null): boolean {
+  if (!received) return false;
   const a = Buffer.from(expected);
-  const b = Buffer.from(signature);
+  const b = Buffer.from(received);
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
 export async function POST(req: Request) {
-  const secret = process.env.PAYMENT_WEBHOOK_SECRET;
-  if (!secret) {
-    return NextResponse.json(
-      { error: "Webhook de pagamento não configurado." },
-      { status: 503 },
-    );
-  }
-
-  const rawBody = await req.text();
-  if (!verifySignature(secret, rawBody, req.headers.get("x-payment-signature"))) {
-    return NextResponse.json({ error: "Assinatura inválida." }, { status: 401 });
-  }
-
+  const raw = await req.text();
   let parsed;
   try {
-    parsed = bodySchema.safeParse(JSON.parse(rawBody));
+    parsed = bodySchema.safeParse(JSON.parse(raw));
   } catch {
     return NextResponse.json({ error: "Corpo inválido." }, { status: 400 });
   }
@@ -51,10 +54,40 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Requisição inválida." }, { status: 400 });
   }
 
-  const result = await markOrderPaid(parsed.data.orderId);
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 404 });
+  const orderId = parsed.data.payment.externalReference;
+  if (!orderId) {
+    // Sem referência ao nosso pedido: nada a fazer, mas confirmamos o recebimento.
+    return NextResponse.json({ ok: true, ignored: true });
   }
 
+  const order = await db.order.findUnique({
+    where: { id: orderId },
+    select: { organizationId: true },
+  });
+  if (!order) {
+    return NextResponse.json({ ok: true, ignored: true });
+  }
+
+  // Valida o token da ESCOLA dona do pedido (isola entre tenants).
+  const token = await getWebhookToken(order.organizationId);
+  if (!token || !tokenMatches(token, req.headers.get("asaas-access-token"))) {
+    return NextResponse.json({ error: "Token inválido." }, { status: 401 });
+  }
+
+  const isPaid =
+    PAID_EVENTS.has(parsed.data.event) ||
+    (parsed.data.payment.status
+      ? PAID_STATUSES.has(parsed.data.payment.status)
+      : false);
+
+  if (!isPaid) {
+    // Outro evento (criado, vencido, estornado…): apenas confirmamos.
+    return NextResponse.json({ ok: true, handled: false });
+  }
+
+  const result = await markOrderPaid(orderId);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 500 });
+  }
   return NextResponse.json({ ok: true, alreadyPaid: result.alreadyPaid });
 }

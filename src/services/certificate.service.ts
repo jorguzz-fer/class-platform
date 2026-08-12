@@ -78,11 +78,27 @@ export function getStudentCertificate(studentId: string, certificateId: string) 
   return db.certificate.findFirst({
     where: { id: certificateId, studentId },
     include: {
-      course: { select: { title: true } },
+      course: { select: { title: true, workloadHours: true, durationMinutes: true } },
       student: { select: { name: true } },
       organization: { select: { name: true } },
     },
   });
+}
+
+/**
+ * Carga horária (horas) a exibir no certificado: usa `workloadHours` se
+ * definido; senão estima pela soma da duração das aulas (durationMinutes).
+ * Retorna null quando não há base para informar.
+ */
+export function certificateWorkloadHours(course: {
+  workloadHours: number | null;
+  durationMinutes: number | null;
+}): number | null {
+  if (course.workloadHours && course.workloadHours > 0) return course.workloadHours;
+  if (course.durationMinutes && course.durationMinutes > 0) {
+    return Math.max(1, Math.round(course.durationMinutes / 60));
+  }
+  return null;
 }
 
 /**
