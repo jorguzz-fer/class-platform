@@ -9,6 +9,7 @@ import {
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EnrollmentStatusBadge } from "@/components/dashboard/enrollment-status-badge";
+import { EditEnrollmentButton } from "@/components/dashboard/edit-enrollment-button";
 import { PendingEnrollmentActions } from "@/components/dashboard/pending-enrollment-actions";
 import { ListFilters } from "@/components/dashboard/list-filters";
 import { cn } from "@/lib/utils";
@@ -145,6 +146,7 @@ export default async function EnrollmentsPage({
                   <th className="px-4 py-3 font-medium">Curso</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Matriculado em</th>
+                  <th className="px-4 py-3 font-medium text-right">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -164,6 +166,15 @@ export default async function EnrollmentsPage({
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {e.enrolledAt.toLocaleDateString("pt-BR")}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <EditEnrollmentButton
+                        enrollmentId={e.id}
+                        studentName={e.student.name}
+                        courseTitle={e.course.title}
+                        currentStatus={e.status}
+                        enrolledAt={e.enrolledAt.toISOString().slice(0, 10)}
+                      />
                     </td>
                   </tr>
                 ))}

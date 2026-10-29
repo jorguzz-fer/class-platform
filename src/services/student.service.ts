@@ -126,6 +126,22 @@ export async function updateStudent(
   return true;
 }
 
+/** Ativa/inativa um aluno (escopo: membro STUDENT desta org). */
+export async function setStudentActive(
+  organizationId: string,
+  studentId: string,
+  isActive: boolean,
+): Promise<boolean> {
+  const member = await db.organizationMember.findFirst({
+    where: { organizationId, userId: studentId, role: "STUDENT" },
+    select: { id: true },
+  });
+  if (!member) return false;
+
+  await db.user.update({ where: { id: studentId }, data: { isActive } });
+  return true;
+}
+
 /**
  * Remove o aluno da organização (remove a membership e as matrículas desta org).
  * Não deleta o User global — ele pode pertencer a outras escolas.

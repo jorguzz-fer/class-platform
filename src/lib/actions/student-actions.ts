@@ -11,16 +11,19 @@ import {
   createStudentSchema,
   updateStudentSchema,
   createEnrollmentSchema,
+  updateEnrollmentSchema,
 } from "@/lib/validators";
 import {
   createStudent,
   updateStudent,
   removeStudent,
+  setStudentActive,
 } from "@/services/student.service";
 import {
   enrollStudent,
   cancelEnrollment,
   deleteEnrollment,
+  updateEnrollment,
   approveEnrollment,
   rejectEnrollment,
 } from "@/services/enrollment.service";
@@ -99,6 +102,30 @@ export async function removeStudentAction(studentId: string): Promise<void> {
   redirect("/dashboard/students");
 }
 
+/** Ativa/inativa um aluno direto na lista. */
+export async function setStudentActiveAction(
+  studentId: string,
+  isActive: boolean,
+): Promise<ActionResult> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "student:manage");
+
+  const ok = await setStudentActive(ctx.organizationId, studentId, isActive);
+  if (!ok) return { error: "Aluno não encontrado." };
+
+  await audit({
+    organizationId: ctx.organizationId,
+    userId: ctx.userId,
+    action: isActive ? "student.activate" : "student.deactivate",
+    entityType: "User",
+    entityId: studentId,
+  });
+
+  revalidatePath("/dashboard/students");
+  revalidatePath(`/dashboard/students/${studentId}`);
+  return null;
+}
+
 // ---- Matrículas ----------------------------------------------------------
 
 export async function enrollStudentAction(
@@ -138,6 +165,30 @@ export async function cancelEnrollmentAction(enrollmentId: string): Promise<Acti
   assertPermission(ctx.role, "enrollment:manage");
 
   const ok = await cancelEnrollment(ctx.organizationId, enrollmentId);
+  if (!ok) return { error: "Matrícula não encontrada." };
+
+  revalidatePath("/dashboard/enrollments");
+  return null;
+}
+
+/** Edita manualmente o status e a data de uma matrícula. */
+export async function updateEnrollmentAction(
+  enrollmentId: string,
+  input: { status: string; enrolledAt: string },
+): Promise<ActionResult> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "enrollment:manage");
+
+  const parsed = updateEnrollmentSchema.safeParse(input);
+  if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
+
+  // Ancoramos a data ao meio-dia UTC para não "voltar um dia" por fuso.
+  const enrolledAt = new Date(`${parsed.data.enrolledAt}T12:00:00.000Z`);
+
+  const ok = await updateEnrollment(ctx.organizationId, enrollmentId, {
+    status: parsed.data.status,
+    enrolledAt,
+  });
   if (!ok) return { error: "Matrícula não encontrada." };
 
   revalidatePath("/dashboard/enrollments");

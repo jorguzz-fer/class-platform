@@ -5,8 +5,8 @@ import { requireOrg } from "@/lib/tenant";
 import { listStudents } from "@/services/student.service";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { ListFilters } from "@/components/dashboard/list-filters";
+import { StudentActiveToggle } from "@/components/dashboard/student-active-toggle";
 import { formatCpf } from "@/lib/cpf";
 import { cn } from "@/lib/utils";
 
@@ -101,11 +101,10 @@ export default async function StudentsPage({
                     <td className="px-4 py-3 text-muted-foreground">{student.email}</td>
                     <td className="px-4 py-3">{student._count.enrollments}</td>
                     <td className="px-4 py-3">
-                      {student.isActive ? (
-                        <Badge variant="secondary">Ativo</Badge>
-                      ) : (
-                        <Badge variant="outline">Inativo</Badge>
-                      )}
+                      <StudentActiveToggle
+                        studentId={student.id}
+                        isActive={student.isActive}
+                      />
                     </td>
                   </tr>
                 ))}
