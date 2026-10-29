@@ -225,6 +225,18 @@ export const createEnrollmentSchema = z.object({
   courseId: z.string().min(1, "Selecione um curso"),
 });
 
+// Edição manual de uma matrícula: status e data de matrícula. PENDING fica de
+// fora (é a fila de aprovação). A data vem como YYYY-MM-DD do <input type=date>.
+export const updateEnrollmentSchema = z.object({
+  status: z.enum(["ACTIVE", "EXPIRED", "CANCELED", "COMPLETED"]),
+  enrolledAt: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida (use o seletor)"),
+});
+
+export type UpdateEnrollmentInput = z.infer<typeof updateEnrollmentSchema>;
+
 // Auto-inscrição pública: o aluno cria a própria conta ao solicitar um curso.
 export const selfEnrollSchema = z.object({
   schoolSlug: z.string().trim().min(1),

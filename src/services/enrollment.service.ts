@@ -114,6 +114,37 @@ export async function cancelEnrollment(organizationId: string, enrollmentId: str
   return result.count > 0;
 }
 
+/**
+ * Edição manual de uma matrícula: status e data de matrícula. Escopada por org.
+ * Ao marcar COMPLETED, carimba completedAt (se ainda não houver). PENDING não é
+ * permitido aqui — é a fila de aprovação.
+ */
+export async function updateEnrollment(
+  organizationId: string,
+  enrollmentId: string,
+  input: { status: EnrollmentStatus; enrolledAt: Date },
+): Promise<boolean> {
+  const existing = await db.enrollment.findFirst({
+    where: { id: enrollmentId, organizationId },
+    select: { completedAt: true },
+  });
+  if (!existing) return false;
+
+  await db.enrollment.update({
+    where: { id: enrollmentId },
+    data: {
+      status: input.status,
+      enrolledAt: input.enrolledAt,
+      // Carimba a conclusão ao marcar COMPLETED; preserva a data já existente.
+      completedAt:
+        input.status === "COMPLETED"
+          ? (existing.completedAt ?? new Date())
+          : existing.completedAt,
+    },
+  });
+  return true;
+}
+
 export async function deleteEnrollment(organizationId: string, enrollmentId: string) {
   const result = await db.enrollment.deleteMany({
     where: { id: enrollmentId, organizationId },
