@@ -5,11 +5,13 @@ import { ArrowLeft } from "lucide-react";
 import { requireOrg } from "@/lib/tenant";
 import { can } from "@/lib/permissions";
 import { createStudentAction } from "@/lib/actions/student-actions";
+import { getStudentOperations } from "@/services/student.service";
 import { NewStudentForm } from "@/components/forms/student-form";
 
 export default async function NewStudentPage() {
   const ctx = await requireOrg();
   if (!can(ctx.role, "student:manage")) redirect("/dashboard/students");
+  const operations = await getStudentOperations(ctx.organizationId);
 
   return (
     <div className="flex flex-col gap-6">
@@ -27,7 +29,7 @@ export default async function NewStudentPage() {
         </p>
       </div>
 
-      <NewStudentForm action={createStudentAction} />
+      <NewStudentForm action={createStudentAction} operations={operations} />
     </div>
   );
 }

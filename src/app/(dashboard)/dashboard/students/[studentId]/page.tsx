@@ -4,13 +4,14 @@ import { ArrowLeft } from "lucide-react";
 
 import { requireOrg } from "@/lib/tenant";
 import { can } from "@/lib/permissions";
-import { getStudent } from "@/services/student.service";
+import { getStudent, getStudentOperations } from "@/services/student.service";
 import { listEnrollmentsForStudent } from "@/services/enrollment.service";
 import { listEnrollableCourses } from "@/services/course.service";
 import { EnrollStudentForm } from "@/components/dashboard/enroll-student-form";
 import { EnrollmentRowActions } from "@/components/dashboard/enrollment-row-actions";
 import { EnrollmentStatusBadge } from "@/components/dashboard/enrollment-status-badge";
 import { AnonymizeStudentButton } from "@/components/dashboard/anonymize-student-button";
+import { StudentOperationSelect } from "@/components/dashboard/student-operation-select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function StudentDetailPage({
@@ -24,9 +25,10 @@ export default async function StudentDetailPage({
   const student = await getStudent(ctx.organizationId, studentId);
   if (!student) notFound();
 
-  const [enrollments, courses] = await Promise.all([
+  const [enrollments, courses, operations] = await Promise.all([
     listEnrollmentsForStudent(ctx.organizationId, studentId),
     listEnrollableCourses(ctx.organizationId),
+    getStudentOperations(ctx.organizationId),
   ]);
 
   const canManageEnroll = can(ctx.role, "enrollment:manage");
@@ -46,6 +48,25 @@ export default async function StudentDetailPage({
         <h1 className="text-2xl font-bold tracking-tight">{student.name}</h1>
         <p className="text-muted-foreground">{student.email}</p>
       </div>
+
+      {(operations.length > 0 || student.operation) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Operação</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {can(ctx.role, "student:manage") ? (
+              <StudentOperationSelect
+                studentId={student.id}
+                operation={student.operation}
+                operations={operations}
+              />
+            ) : (
+              <p className="text-sm">{student.operation ?? "Sem operação"}</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {canManageEnroll && (
         <Card>

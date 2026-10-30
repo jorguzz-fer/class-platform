@@ -11,7 +11,7 @@ import type { CreateStudentInput, UpdateStudentInput } from "@/lib/validators";
 
 export async function listStudents(
   organizationId: string,
-  filters?: { q?: string; status?: string },
+  filters?: { q?: string; status?: string; operation?: string },
 ) {
   const q = filters?.q?.trim();
   const active =
@@ -24,6 +24,7 @@ export async function listStudents(
     where: {
       organizationId,
       role: "STUDENT",
+      ...(filters?.operation ? { operation: filters.operation } : {}),
       user: {
         ...(active !== undefined ? { isActive: active } : {}),
         ...(q
@@ -51,21 +52,22 @@ export async function listStudents(
       },
     },
   });
-  return members.map((m) => m.user);
+  return members.map((m) => ({ ...m.user, operation: m.operation }));
 }
 
 /** Busca um aluno garantindo que ele é membro STUDENT desta organização. */
 export async function getStudent(organizationId: string, studentId: string) {
   const member = await db.organizationMember.findFirst({
     where: { organizationId, userId: studentId, role: "STUDENT" },
-    select: { userId: true },
+    select: { userId: true, operation: true },
   });
   if (!member) return null;
 
-  return db.user.findUnique({
+  const user = await db.user.findUnique({
     where: { id: studentId },
     select: { id: true, name: true, email: true, isActive: true, createdAt: true },
   });
+  return user ? { ...user, operation: member.operation } : null;
 }
 
 export type CreateStudentResult =
@@ -91,7 +93,12 @@ export async function createStudent(
       return { ok: false, error: "Este aluno já está cadastrado na sua escola." };
     }
     await db.organizationMember.create({
-      data: { organizationId, userId: existing.id, role: "STUDENT" },
+      data: {
+        organizationId,
+        userId: existing.id,
+        role: "STUDENT",
+        operation: input.operation || null,
+      },
     });
     return { ok: true, studentId: existing.id };
   }
@@ -102,7 +109,9 @@ export async function createStudent(
       email: input.email,
       cpf: input.cpf,
       role: "STUDENT",
-      memberships: { create: { organizationId, role: "STUDENT" } },
+      memberships: {
+        create: { organizationId, role: "STUDENT", operation: input.operation || null },
+      },
     },
   });
   return { ok: true, studentId: user.id };
@@ -158,4 +167,51 @@ export async function removeStudent(organizationId: string, studentId: string) {
     db.organizationMember.delete({ where: { id: member.id } }),
   ]);
   return true;
+}
+
+// ---- Operações (categorias de alunos por escola) --------------------------
+
+/** Operações configuradas na escola. Lista vazia = campo oculto. */
+export async function getStudentOperations(organizationId: string): Promise<string[]> {
+  const org = await db.organization.findUnique({
+    where: { id: organizationId },
+    select: { studentOperations: true },
+  });
+  return org?.studentOperations ?? [];
+}
+
+/** Substitui a lista de operações da escola. */
+export async function setStudentOperations(organizationId: string, operations: string[]) {
+  await db.organization.update({
+    where: { id: organizationId },
+    data: { studentOperations: operations },
+  });
+}
+
+/**
+ * Valida a operação informada contra a lista da escola. Vazio = sem operação.
+ * Recusa valores fora da lista (o dropdown só oferece os itens válidos, então
+ * um valor estranho indica formulário adulterado ou lista alterada no meio).
+ */
+export async function resolveStudentOperation(
+  organizationId: string,
+  raw: string | null | undefined,
+): Promise<{ ok: true; value: string | null } | { ok: false }> {
+  const value = raw?.trim();
+  if (!value) return { ok: true, value: null };
+  const list = await getStudentOperations(organizationId);
+  return list.includes(value) ? { ok: true, value } : { ok: false };
+}
+
+/** Define (ou limpa) a operação de um aluno desta escola. */
+export async function setStudentOperation(
+  organizationId: string,
+  studentId: string,
+  operation: string | null,
+): Promise<boolean> {
+  const result = await db.organizationMember.updateMany({
+    where: { organizationId, userId: studentId, role: "STUDENT" },
+    data: { operation },
+  });
+  return result.count > 0;
 }

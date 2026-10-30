@@ -209,11 +209,36 @@ export type ApiCourseImportInput = z.infer<typeof apiCourseImportSchema>;
 // Alunos e Matrículas (Etapa 6)
 // ---------------------------------------------------------------------------
 
+// Operação do aluno (categoria da escola). Opcional; a action confere se o
+// valor está na lista da escola.
+const studentOperationField = z.string().trim().max(120).optional().or(z.literal(""));
+
 export const createStudentSchema = z.object({
   name: fullNameSchema,
   cpf: cpfSchema,
   email: z.string().trim().toLowerCase().email("E-mail inválido").max(160),
+  operation: studentOperationField,
 });
+
+// Lista de operações da escola, uma por linha (Configurações → Operações).
+export const studentOperationsSchema = z
+  .string()
+  .max(10000)
+  .transform((text) => {
+    const seen = new Set<string>();
+    const list: string[] = [];
+    for (const raw of text.split(/\r?\n/)) {
+      const item = raw.trim().replace(/\s+/g, " ");
+      if (!item) continue;
+      const key = item.toLocaleLowerCase("pt-BR");
+      if (seen.has(key)) continue;
+      seen.add(key);
+      list.push(item);
+    }
+    return list;
+  })
+  .refine((list) => list.length <= 200, "Máximo de 200 operações.")
+  .refine((list) => list.every((i) => i.length <= 120), "Cada operação pode ter até 120 caracteres.");
 
 export const updateStudentSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome").max(120),
@@ -245,6 +270,7 @@ export const selfEnrollSchema = z.object({
   cpf: cpfSchema,
   email: z.string().trim().toLowerCase().email("E-mail inválido").max(160),
   password: passwordSchema,
+  operation: studentOperationField,
 });
 
 // Avaliação por estrelas (1 a 5).

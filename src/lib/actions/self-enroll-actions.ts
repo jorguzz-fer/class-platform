@@ -34,6 +34,7 @@ export async function selfEnrollAction(
     cpf: formData.get("cpf"),
     email: formData.get("email"),
     password: formData.get("password"),
+    operation: formData.get("operation") ?? undefined,
   });
   if (!parsed.success) {
     return { fieldErrors: parsed.error.flatten().fieldErrors };
@@ -43,6 +44,9 @@ export async function selfEnrollAction(
   if (!result.ok) {
     if (result.code === "EXISTING_EMAIL") {
       return { fieldErrors: { email: [result.error] } };
+    }
+    if (result.code === "INVALID_OPERATION") {
+      return { fieldErrors: { operation: [result.error] } };
     }
     return { error: result.error };
   }
