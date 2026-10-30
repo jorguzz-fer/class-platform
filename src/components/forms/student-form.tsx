@@ -7,6 +7,7 @@ import type { ActionResult } from "@/lib/actions/student-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { OperationSelect } from "@/components/forms/operation-select";
 
 function FieldError({ messages }: { messages?: string[] }) {
   if (!messages?.length) return null;
@@ -24,8 +25,11 @@ function SubmitButton({ label }: { label: string }) {
 
 export function NewStudentForm({
   action,
+  operations = [],
 }: {
   action: (prev: ActionResult, formData: FormData) => Promise<ActionResult>;
+  /** Operações da escola; vazio = campo oculto. */
+  operations?: string[];
 }) {
   const [state, formAction] = useActionState<ActionResult, FormData>(action, null);
 
@@ -52,6 +56,7 @@ export function NewStudentForm({
         <Input id="email" name="email" type="email" required />
         <FieldError messages={state?.fieldErrors?.email} />
       </div>
+      <OperationSelect operations={operations} error={state?.fieldErrors?.operation} />
       {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
       <div>
         <SubmitButton label="Cadastrar aluno" />

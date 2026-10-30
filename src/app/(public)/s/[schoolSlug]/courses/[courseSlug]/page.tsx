@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SelfEnrollForm } from "@/components/student/self-enroll-form";
 import { formatPrice, levelLabel } from "@/lib/course-format";
+import { getStudentOperations } from "@/services/student.service";
 
 export default async function PublicCoursePage({
   params,
@@ -25,6 +26,7 @@ export default async function PublicCoursePage({
   if (!data) notFound();
 
   const { course, modules } = data;
+  const operations = await getStudentOperations(school.organizationId);
   const totalLessons = modules.reduce((sum, m) => sum + m.lessons.length, 0);
   const cover = course.coverUrl ?? course.thumbnailUrl;
   const level = levelLabel(course.level);
@@ -154,6 +156,7 @@ export default async function PublicCoursePage({
                 schoolSlug={schoolSlug}
                 courseSlug={courseSlug}
                 isPaid={isPaid}
+                operations={operations}
               />
               <p className="text-center text-xs text-muted-foreground">
                 Já tem conta?{" "}

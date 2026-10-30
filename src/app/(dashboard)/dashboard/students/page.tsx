@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Plus, Users } from "lucide-react";
 
 import { requireOrg } from "@/lib/tenant";
-import { listStudents } from "@/services/student.service";
+import { listStudents, getStudentOperations } from "@/services/student.service";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ListFilters } from "@/components/dashboard/list-filters";
@@ -13,12 +13,17 @@ import { cn } from "@/lib/utils";
 export default async function StudentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; operation?: string }>;
 }) {
   const { organizationId } = await requireOrg();
-  const { q = "", status = "" } = await searchParams;
-  const hasFilters = q.trim() !== "" || status !== "";
-  const students = await listStudents(organizationId, { q, status });
+  const { q = "", status = "", operation = "" } = await searchParams;
+  const hasFilters = q.trim() !== "" || status !== "" || operation !== "";
+  const [students, operations] = await Promise.all([
+    listStudents(organizationId, { q, status, operation }),
+    getStudentOperations(organizationId),
+  ]);
+  // Coluna/filtro de Operação só para escolas que usam operações (ex.: DCAS).
+  const showOperation = operations.length > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -42,6 +47,19 @@ export default async function StudentsPage({
           { value: "active", label: "Ativo" },
           { value: "inactive", label: "Inativo" },
         ]}
+        extra={
+          showOperation
+            ? {
+                param: "operation",
+                value: operation,
+                label: "Filtrar por operação",
+                options: [
+                  { value: "", label: "Todas as operações" },
+                  ...operations.map((op) => ({ value: op, label: op })),
+                ],
+              }
+            : undefined
+        }
       />
 
       {students.length === 0 ? (
@@ -80,6 +98,9 @@ export default async function StudentsPage({
                   <th className="px-4 py-3 font-medium">Nome</th>
                   <th className="px-4 py-3 font-medium">CPF</th>
                   <th className="px-4 py-3 font-medium">E-mail</th>
+                  {showOperation && (
+                    <th className="px-4 py-3 font-medium">Operação</th>
+                  )}
                   <th className="px-4 py-3 font-medium">Matrículas</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                 </tr>
@@ -99,6 +120,13 @@ export default async function StudentsPage({
                       {formatCpf(student.cpf)}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{student.email}</td>
+                    {showOperation && (
+                      <td className="px-4 py-3">
+                        {student.operation ?? (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-4 py-3">{student._count.enrollments}</td>
                     <td className="px-4 py-3">
                       <StudentActiveToggle

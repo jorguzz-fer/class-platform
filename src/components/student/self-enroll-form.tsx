@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
+import { OperationSelect } from "@/components/forms/operation-select";
 
 function SubmitButton({ isPaid }: { isPaid: boolean }) {
   const { pending } = useFormStatus();
@@ -35,10 +36,13 @@ export function SelfEnrollForm({
   schoolSlug,
   courseSlug,
   isPaid = false,
+  operations = [],
 }: {
   schoolSlug: string;
   courseSlug: string;
   isPaid?: boolean;
+  /** Operações da escola; vazio = campo oculto. */
+  operations?: string[];
 }) {
   const [state, formAction] = useActionState<SelfEnrollState, FormData>(
     selfEnrollAction,
@@ -74,6 +78,8 @@ export function SelfEnrollForm({
         <Input id="email" name="email" type="email" autoComplete="email" required />
         <FieldError messages={state?.fieldErrors?.email} />
       </div>
+
+      <OperationSelect operations={operations} error={state?.fieldErrors?.operation} />
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="password">Crie uma senha</Label>

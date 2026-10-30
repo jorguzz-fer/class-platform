@@ -10,30 +10,41 @@ const selectClass =
   "h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
 /**
- * Filtros genéricos de listagem (busca por texto + status opcional). Reflete o
- * estado na URL (?q=&status=) para a página filtrar no servidor (SSR).
+ * Filtros genéricos de listagem (busca por texto + status opcional + um filtro
+ * extra opcional). Reflete o estado na URL (?q=&status=&<extra.param>=) para a
+ * página filtrar no servidor (SSR).
  */
 export function ListFilters({
   q,
   status,
   searchPlaceholder,
   statuses,
+  extra,
 }: {
   q: string;
   status: string;
   searchPlaceholder: string;
   /** Quando ausente, mostra só a busca. O 1º item costuma ser "Todos" (value ""). */
   statuses?: { value: string; label: string }[];
+  /** Filtro adicional (ex.: Operação). O 1º item costuma ser "Todos" (value ""). */
+  extra?: {
+    param: string;
+    value: string;
+    label: string;
+    options: { value: string; label: string }[];
+  };
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const [search, setSearch] = useState(q);
   const [statusVal, setStatusVal] = useState(status);
+  const [extraVal, setExtraVal] = useState(extra?.value ?? "");
 
-  function pushUrl(nextSearch: string, nextStatus: string) {
+  function pushUrl(nextSearch: string, nextStatus: string, nextExtra = extraVal) {
     const params = new URLSearchParams();
     if (nextSearch.trim()) params.set("q", nextSearch.trim());
     if (nextStatus) params.set("status", nextStatus);
+    if (extra && nextExtra) params.set(extra.param, nextExtra);
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
@@ -70,6 +81,23 @@ export function ListFilters({
           {statuses.map((s) => (
             <option key={s.value} value={s.value}>
               {s.label}
+            </option>
+          ))}
+        </select>
+      )}
+      {extra && extra.options.length > 0 && (
+        <select
+          value={extraVal}
+          onChange={(e) => {
+            setExtraVal(e.target.value);
+            pushUrl(search, statusVal, e.target.value);
+          }}
+          className={selectClass}
+          aria-label={extra.label}
+        >
+          {extra.options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
             </option>
           ))}
         </select>

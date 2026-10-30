@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 
 import { db } from "@/lib/db";
 import type { SelfEnrollInput } from "@/lib/validators";
+import { resolveStudentOperation } from "@/services/student.service";
 
 /**
  * Auto-inscrição pública por link (estilo Netflix: inscrição aberta).
@@ -26,7 +27,11 @@ export type SelfEnrollResult =
       /** Curso pago: conta criada, mas o acesso só é liberado após o pagamento. */
       requiresPayment: boolean;
     }
-  | { ok: false; code: "EXISTING_EMAIL" | "NOT_FOUND"; error: string };
+  | {
+      ok: false;
+      code: "EXISTING_EMAIL" | "NOT_FOUND" | "INVALID_OPERATION";
+      error: string;
+    };
 
 export async function selfEnroll(
   input: SelfEnrollInput,
@@ -71,6 +76,12 @@ export async function selfEnroll(
     };
   }
 
+  // Operação (categoria da escola, ex.: DCAS). Só aceita itens da lista.
+  const operation = await resolveStudentOperation(school.organizationId, input.operation);
+  if (!operation.ok) {
+    return { ok: false, code: "INVALID_OPERATION", error: "Operação inválida." };
+  }
+
   const passwordHash = await bcrypt.hash(input.password, 12);
 
   await db.$transaction(async (tx) => {
@@ -82,7 +93,11 @@ export async function selfEnroll(
         passwordHash,
         role: "STUDENT",
         memberships: {
-          create: { organizationId: school.organizationId, role: "STUDENT" },
+          create: {
+            organizationId: school.organizationId,
+            role: "STUDENT",
+            operation: operation.value,
+          },
         },
       },
     });

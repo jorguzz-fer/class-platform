@@ -69,6 +69,9 @@ model Organization {
   planId             String?
   trialEndsAt        DateTime?
   subscriptionStatus SubscriptionStatus @default(TRIALING)
+  // Operações (categorias) que a escola usa para classificar alunos — ex.: a
+  // DCAS separa alunos por cliente/unidade. Vazio = campo oculto na escola.
+  studentOperations  String[]           @default([])
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
@@ -100,6 +103,8 @@ model OrganizationMember {
   organizationId String
   userId         String
   role           UserRole
+  // Operação do aluno nesta escola (um dos itens de Organization.studentOperations).
+  operation      String?
   createdAt      DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)

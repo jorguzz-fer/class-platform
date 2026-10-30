@@ -12,12 +12,16 @@ import {
   updateStudentSchema,
   createEnrollmentSchema,
   updateEnrollmentSchema,
+  studentOperationsSchema,
 } from "@/lib/validators";
 import {
   createStudent,
   updateStudent,
   removeStudent,
   setStudentActive,
+  resolveStudentOperation,
+  setStudentOperation,
+  setStudentOperations,
 } from "@/services/student.service";
 import {
   enrollStudent,
@@ -43,10 +47,17 @@ export async function createStudentAction(
     name: formData.get("name"),
     cpf: formData.get("cpf"),
     email: formData.get("email"),
+    operation: formData.get("operation") ?? undefined,
   });
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
 
-  const result = await createStudent(ctx.organizationId, parsed.data);
+  const operation = await resolveStudentOperation(ctx.organizationId, parsed.data.operation);
+  if (!operation.ok) return { fieldErrors: { operation: ["Operação inválida."] } };
+
+  const result = await createStudent(ctx.organizationId, {
+    ...parsed.data,
+    operation: operation.value ?? undefined,
+  });
   if (!result.ok) return { error: result.error };
 
   await audit({
@@ -100,6 +111,45 @@ export async function removeStudentAction(studentId: string): Promise<void> {
 
   revalidatePath("/dashboard/students");
   redirect("/dashboard/students");
+}
+
+/** Define (ou limpa) a operação de um aluno, direto na página dele. */
+export async function setStudentOperationAction(
+  studentId: string,
+  operation: string,
+): Promise<ActionResult> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "student:manage");
+
+  const resolved = await resolveStudentOperation(ctx.organizationId, operation);
+  if (!resolved.ok) return { error: "Operação inválida." };
+
+  const ok = await setStudentOperation(ctx.organizationId, studentId, resolved.value);
+  if (!ok) return { error: "Aluno não encontrado." };
+
+  revalidatePath("/dashboard/students");
+  revalidatePath(`/dashboard/students/${studentId}`);
+  return null;
+}
+
+/** Salva a lista de operações da escola (Configurações → Operações). */
+export async function saveStudentOperationsAction(
+  _prev: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "student:manage");
+
+  const parsed = studentOperationsSchema.safeParse(formData.get("operations") ?? "");
+  if (!parsed.success) {
+    return { fieldErrors: { operations: parsed.error.issues.map((i) => i.message) } };
+  }
+
+  await setStudentOperations(ctx.organizationId, parsed.data);
+
+  revalidatePath("/dashboard/settings/operations");
+  revalidatePath("/dashboard/students");
+  return null;
 }
 
 /** Ativa/inativa um aluno direto na lista. */

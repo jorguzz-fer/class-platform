@@ -37,8 +37,13 @@ function documentErrorMessage(e: unknown): string {
   if (e instanceof Anthropic.RateLimitError) {
     return `${prefix} A IA está com muitas requisições agora. Aguarde um minuto e tente de novo.`;
   }
-  if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) {
-    return `${prefix} A credencial de IA do servidor é inválida. Avise o suporte.`;
+  if (e instanceof Anthropic.AuthenticationError) {
+    // 401: a chave foi recusada (inválida, revogada ou com erro de digitação).
+    return `${prefix} A chave de IA do servidor (ANTHROPIC_API_KEY) foi recusada: inválida, revogada ou digitada errado. Avise o suporte.`;
+  }
+  if (e instanceof Anthropic.PermissionDeniedError) {
+    // 403: a chave é válida, mas não pode usar este recurso/modelo.
+    return `${prefix} A chave de IA do servidor não tem permissão para o modelo configurado (${e.message}). Avise o suporte.`;
   }
   if (e instanceof Anthropic.NotFoundError) {
     return `${prefix} O modelo de IA configurado não está disponível. Avise o suporte.`;
