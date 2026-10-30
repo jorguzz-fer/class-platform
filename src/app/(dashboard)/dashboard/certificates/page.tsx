@@ -9,7 +9,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { CertificateFilters } from "@/components/dashboard/certificate-filters";
-import { CertificateAttendanceToggle } from "@/components/dashboard/certificate-attendance-toggle";
+import { CertificateAttendanceEditor } from "@/components/dashboard/certificate-attendance-editor";
 import { cn } from "@/lib/utils";
 
 export default async function DashboardCertificatesPage({
@@ -118,12 +118,14 @@ export default async function DashboardCertificatesPage({
                     </td>
                     <td className="px-4 py-3">
                       {canManage ? (
-                        <CertificateAttendanceToggle
+                        <CertificateAttendanceEditor
                           certificateId={cert.id}
-                          attended={cert.attendedInPerson}
+                          studentName={cert.student.name}
+                          courseTitle={cert.course.title}
+                          issuedAt={cert.issuedAt.toISOString().slice(0, 10)}
                           attendedAt={
-                            cert.attendedAt
-                              ? cert.attendedAt.toLocaleDateString("pt-BR")
+                            cert.attendedInPerson && cert.attendedAt
+                              ? cert.attendedAt.toISOString().slice(0, 10)
                               : null
                           }
                         />
