@@ -125,14 +125,95 @@ export async function verifyCertificate(code: string) {
   };
 }
 
-/** Certificados emitidos numa organização (visão admin). */
-export function listOrgCertificates(organizationId: string) {
+/** Certificados emitidos numa organização (visão admin), com filtros. */
+export function listOrgCertificates(
+  organizationId: string,
+  filters?: { q?: string; courseId?: string; from?: string; to?: string; attended?: string },
+) {
   return db.certificate.findMany({
-    where: { organizationId },
+    where: buildCertificateWhere(organizationId, filters),
     orderBy: { issuedAt: "desc" },
     include: {
-      course: { select: { title: true } },
-      student: { select: { name: true, email: true } },
+      course: { select: { id: true, title: true } },
+      student: { select: { name: true, email: true, cpf: true } },
     },
   });
+}
+
+/**
+ * Monta o filtro das listagens/exportação de certificados. Compartilhado entre
+ * a tela e o CSV para manter o mesmo escopo.
+ * - q: nome/e-mail do aluno ou título do curso
+ * - courseId: curso específico
+ * - from/to: intervalo da data de emissão (YYYY-MM-DD, inclusivo)
+ * - attended: "yes" (presencial) | "no" (não presencial)
+ */
+export function buildCertificateWhere(
+  organizationId: string,
+  filters?: { q?: string; courseId?: string; from?: string; to?: string; attended?: string },
+) {
+  const q = filters?.q?.trim();
+  const insensitive = { mode: "insensitive" as const };
+
+  const issuedAt: { gte?: Date; lte?: Date } = {};
+  if (filters?.from && /^\d{4}-\d{2}-\d{2}$/.test(filters.from)) {
+    issuedAt.gte = new Date(`${filters.from}T00:00:00.000Z`);
+  }
+  if (filters?.to && /^\d{4}-\d{2}-\d{2}$/.test(filters.to)) {
+    issuedAt.lte = new Date(`${filters.to}T23:59:59.999Z`);
+  }
+
+  const attended =
+    filters?.attended === "yes" ? true : filters?.attended === "no" ? false : undefined;
+
+  return {
+    organizationId,
+    ...(filters?.courseId ? { courseId: filters.courseId } : {}),
+    ...(attended !== undefined ? { attendedInPerson: attended } : {}),
+    ...(issuedAt.gte || issuedAt.lte ? { issuedAt } : {}),
+    ...(q
+      ? {
+          OR: [
+            { student: { name: { contains: q, ...insensitive } } },
+            { student: { email: { contains: q, ...insensitive } } },
+            { course: { title: { contains: q, ...insensitive } } },
+          ],
+        }
+      : {}),
+  };
+}
+
+/** Cursos que já têm certificados emitidos (para o filtro por curso). */
+export function listCertificateCourses(organizationId: string) {
+  return db.course.findMany({
+    where: { organizationId, certificates: { some: {} } },
+    select: { id: true, title: true },
+    orderBy: { title: "asc" },
+  });
+}
+
+/**
+ * Marca/desmarca presença no treinamento presencial. Ao marcar, carimba
+ * attendedAt com a MESMA data de emissão do certificado (regra do negócio).
+ * Escopado por org.
+ */
+export async function setCertificateAttendance(
+  organizationId: string,
+  certificateId: string,
+  attended: boolean,
+): Promise<boolean> {
+  const cert = await db.certificate.findFirst({
+    where: { id: certificateId, organizationId },
+    select: { issuedAt: true },
+  });
+  if (!cert) return false;
+
+  await db.certificate.update({
+    where: { id: certificateId },
+    data: {
+      attendedInPerson: attended,
+      attendedAt: attended ? cert.issuedAt : null,
+    },
+  });
+  return true;
 }
