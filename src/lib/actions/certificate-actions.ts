@@ -8,6 +8,7 @@ import { assertPermission } from "@/lib/permissions";
 import {
   issueCertificate,
   setCertificateAttendance,
+  setCertificateIssuedAt,
 } from "@/services/certificate.service";
 import { onCertificateIssued } from "@/services/events.service";
 
@@ -43,12 +44,8 @@ export async function setCertificateAttendanceAction(
 
   let attendedAt: Date | null = null;
   if (date !== null) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: "Data inválida." };
-    // Meio-dia UTC: a data não "volta um dia" ao exibir em outro fuso.
-    attendedAt = new Date(`${date}T12:00:00.000Z`);
-    if (Number.isNaN(attendedAt.getTime()) || attendedAt.toISOString().slice(0, 10) !== date) {
-      return { error: "Data inválida." };
-    }
+    attendedAt = parseDateOnly(date);
+    if (!attendedAt) return { error: "Data inválida." };
   }
 
   const ok = await setCertificateAttendance(ctx.organizationId, certificateId, attendedAt);
@@ -56,4 +53,37 @@ export async function setCertificateAttendanceAction(
 
   revalidatePath("/dashboard/certificates");
   return null;
+}
+
+/**
+ * Altera a data de emissão de um certificado (visão admin da escola). A nova
+ * data passa a valer em tudo: tela do aluno, PDF e verificação pública.
+ * Requer gestão de matrículas.
+ */
+export async function setCertificateIssuedAtAction(
+  certificateId: string,
+  date: string,
+): Promise<{ error: string } | null> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "enrollment:manage");
+
+  const issuedAt = parseDateOnly(date);
+  if (!issuedAt) return { error: "Data inválida." };
+
+  const ok = await setCertificateIssuedAt(ctx.organizationId, certificateId, issuedAt);
+  if (!ok) return { error: "Certificado não encontrado." };
+
+  revalidatePath("/dashboard/certificates");
+  return null;
+}
+
+/**
+ * Converte YYYY-MM-DD (do <input type=date>) em Date ao meio-dia UTC, para a
+ * data não "voltar um dia" ao exibir em outro fuso. null se inválida.
+ */
+function parseDateOnly(date: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const d = new Date(`${date}T12:00:00.000Z`);
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== date) return null;
+  return d;
 }

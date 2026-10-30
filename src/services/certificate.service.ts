@@ -125,17 +125,35 @@ export async function verifyCertificate(code: string) {
   };
 }
 
+export type CertificateFilters = {
+  q?: string;
+  courseId?: string;
+  from?: string;
+  to?: string;
+  attended?: string;
+  /** Operação do aluno nesta escola (Configurações → Operações). */
+  operation?: string;
+};
+
 /** Certificados emitidos numa organização (visão admin), com filtros. */
 export function listOrgCertificates(
   organizationId: string,
-  filters?: { q?: string; courseId?: string; from?: string; to?: string; attended?: string },
+  filters?: CertificateFilters,
 ) {
   return db.certificate.findMany({
     where: buildCertificateWhere(organizationId, filters),
     orderBy: { issuedAt: "desc" },
     include: {
       course: { select: { id: true, title: true } },
-      student: { select: { name: true, email: true, cpf: true } },
+      student: {
+        select: {
+          name: true,
+          email: true,
+          cpf: true,
+          // Operação do aluno NESTA escola (vínculo da organização).
+          memberships: { where: { organizationId }, select: { operation: true } },
+        },
+      },
     },
   });
 }
@@ -150,7 +168,7 @@ export function listOrgCertificates(
  */
 export function buildCertificateWhere(
   organizationId: string,
-  filters?: { q?: string; courseId?: string; from?: string; to?: string; attended?: string },
+  filters?: CertificateFilters,
 ) {
   const q = filters?.q?.trim();
   const insensitive = { mode: "insensitive" as const };
@@ -170,6 +188,13 @@ export function buildCertificateWhere(
     organizationId,
     ...(filters?.courseId ? { courseId: filters.courseId } : {}),
     ...(attended !== undefined ? { attendedInPerson: attended } : {}),
+    ...(filters?.operation
+      ? {
+          student: {
+            memberships: { some: { organizationId, operation: filters.operation } },
+          },
+        }
+      : {}),
     ...(issuedAt.gte || issuedAt.lte ? { issuedAt } : {}),
     ...(q
       ? {
@@ -190,6 +215,19 @@ export function listCertificateCourses(organizationId: string) {
     select: { id: true, title: true },
     orderBy: { title: "asc" },
   });
+}
+
+/** Altera a data de emissão de um certificado (correção manual). Escopado por org. */
+export async function setCertificateIssuedAt(
+  organizationId: string,
+  certificateId: string,
+  issuedAt: Date,
+): Promise<boolean> {
+  const result = await db.certificate.updateMany({
+    where: { id: certificateId, organizationId },
+    data: { issuedAt },
+  });
+  return result.count > 0;
 }
 
 /**
