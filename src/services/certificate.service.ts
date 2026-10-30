@@ -1,6 +1,9 @@
 import { randomBytes, randomUUID } from "node:crypto";
 
+import { Prisma } from "@prisma/client";
+
 import { db } from "@/lib/db";
+import { onCertificateIssued } from "@/services/events.service";
 
 /**
  * Serviço de Certificados (SPEC §10.5, §14.10).
@@ -24,7 +27,7 @@ function generateCertificateNumber(): string {
 }
 
 export type IssueResult =
-  | { ok: true; certificateId: string; alreadyIssued: boolean }
+  | { ok: true; certificateId: string; alreadyIssued: boolean; organizationId: string }
   | { ok: false; error: string };
 
 /**
@@ -49,19 +52,128 @@ export async function issueCertificate(
     select: { id: true },
   });
   if (existing) {
-    return { ok: true, certificateId: existing.id, alreadyIssued: true };
+    return {
+      ok: true,
+      certificateId: existing.id,
+      alreadyIssued: true,
+      organizationId: enrollment.organizationId,
+    };
   }
 
-  const certificate = await db.certificate.create({
-    data: {
+  try {
+    const certificate = await db.certificate.create({
+      data: {
+        organizationId: enrollment.organizationId,
+        courseId,
+        studentId,
+        certificateNumber: generateCertificateNumber(),
+        verificationCode: generateVerificationCode(),
+      },
+    });
+    return {
+      ok: true,
+      certificateId: certificate.id,
+      alreadyIssued: false,
       organizationId: enrollment.organizationId,
-      courseId,
-      studentId,
-      certificateNumber: generateCertificateNumber(),
-      verificationCode: generateVerificationCode(),
-    },
+    };
+  } catch (e) {
+    // Emissão simultânea (ex.: automática + clique do aluno): a constraint
+    // única (curso, aluno) barra a segunda — devolve a que já foi criada.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      const winner = await db.certificate.findUnique({
+        where: { courseId_studentId: { courseId, studentId } },
+        select: { id: true },
+      });
+      if (winner) {
+        return {
+          ok: true,
+          certificateId: winner.id,
+          alreadyIssued: true,
+          organizationId: enrollment.organizationId,
+        };
+      }
+    }
+    throw e;
+  }
+}
+
+/**
+ * Emissão automática quando a matrícula fica COMPLETED (aluno concluiu as
+ * aulas ou o admin marcou como concluída). Idempotente e best-effort: nunca
+ * lança, para não atrapalhar a conclusão do curso. Webhook só em emissão nova.
+ */
+export async function autoIssueCertificate(studentId: string, courseId: string): Promise<void> {
+  try {
+    const result = await issueCertificate(studentId, courseId);
+    if (result.ok && !result.alreadyIssued) {
+      await onCertificateIssued(result.organizationId, result.certificateId);
+    }
+  } catch {
+    // best-effort: o admin ainda pode emitir pela tela de Matrículas.
+  }
+}
+
+/** Emissão pelo admin a partir de uma matrícula concluída (escopada por org). */
+export async function issueCertificateForEnrollment(
+  organizationId: string,
+  enrollmentId: string,
+): Promise<IssueResult> {
+  const enrollment = await db.enrollment.findFirst({
+    where: { id: enrollmentId, organizationId },
+    select: { studentId: true, courseId: true, status: true },
   });
-  return { ok: true, certificateId: certificate.id, alreadyIssued: false };
+  if (!enrollment) return { ok: false, error: "Matrícula não encontrada." };
+  if (enrollment.status !== "COMPLETED") {
+    return {
+      ok: false,
+      error: "A matrícula precisa estar Concluída. Altere o status em Editar.",
+    };
+  }
+
+  const result = await issueCertificate(enrollment.studentId, enrollment.courseId);
+  if (result.ok && !result.alreadyIssued) {
+    await onCertificateIssued(organizationId, result.certificateId);
+  }
+  return result;
+}
+
+/** Matrículas concluídas da escola que ainda não têm certificado. */
+export async function listPendingCertificateEnrollments(organizationId: string) {
+  const [completed, certificates] = await Promise.all([
+    db.enrollment.findMany({
+      where: { organizationId, status: "COMPLETED" },
+      select: { id: true, studentId: true, courseId: true },
+    }),
+    db.certificate.findMany({
+      where: { organizationId },
+      select: { studentId: true, courseId: true },
+    }),
+  ]);
+  const issued = new Set(certificates.map((c) => `${c.courseId}:${c.studentId}`));
+  return completed.filter((e) => !issued.has(`${e.courseId}:${e.studentId}`));
+}
+
+/** Emite de uma vez os certificados de todas as matrículas concluídas pendentes. */
+export async function issuePendingCertificates(
+  organizationId: string,
+): Promise<{ issued: number; failed: number }> {
+  const pending = await listPendingCertificateEnrollments(organizationId);
+  let issued = 0;
+  let failed = 0;
+  for (const e of pending) {
+    try {
+      const result = await issueCertificate(e.studentId, e.courseId);
+      if (result.ok && !result.alreadyIssued) {
+        issued++;
+        await onCertificateIssued(organizationId, result.certificateId);
+      } else if (!result.ok) {
+        failed++;
+      }
+    } catch {
+      failed++;
+    }
+  }
+  return { issued, failed };
 }
 
 /** Lista os certificados do aluno logado. */
