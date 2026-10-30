@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 
+import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -18,6 +19,41 @@ import { createLesson, getLesson } from "@/services/lesson.service";
 import { extractTextFromUpload } from "@/services/document-extract.service";
 
 export type AIResult = { error?: string; fieldErrors?: Record<string, string[]> } | null;
+
+/**
+ * Traduz a falha da IA ao organizar um documento numa mensagem acionável,
+ * em vez de um "tente novamente" genérico. Usa as classes de erro tipadas do
+ * SDK (mais específica primeiro); erros próprios do provider (JSON truncado,
+ * recusa, resposta vazia) já vêm com mensagem amigável.
+ */
+function documentErrorMessage(e: unknown): string {
+  const prefix = "Não foi possível organizar o documento.";
+  if (e instanceof Anthropic.APIConnectionTimeoutError) {
+    return `${prefix} A IA demorou demais para responder (documento pesado). Tente novamente ou use um PDF com menos páginas.`;
+  }
+  if (e instanceof Anthropic.APIConnectionError) {
+    return `${prefix} Falha de conexão com a IA. Tente novamente em instantes.`;
+  }
+  if (e instanceof Anthropic.RateLimitError) {
+    return `${prefix} A IA está com muitas requisições agora. Aguarde um minuto e tente de novo.`;
+  }
+  if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) {
+    return `${prefix} A credencial de IA do servidor é inválida. Avise o suporte.`;
+  }
+  if (e instanceof Anthropic.NotFoundError) {
+    return `${prefix} O modelo de IA configurado não está disponível. Avise o suporte.`;
+  }
+  if (e instanceof Anthropic.BadRequestError) {
+    return `${prefix} A IA não aceitou este arquivo (${e.message}).`;
+  }
+  if (e instanceof Anthropic.APIError) {
+    return `${prefix} A IA está instável no momento (erro ${e.status ?? "?"}). Tente novamente em instantes.`;
+  }
+  if (e instanceof Error && e.message) {
+    return `${prefix} ${e.message}`;
+  }
+  return `${prefix} Tente novamente.`;
+}
 
 /** Garante que o plano da organização libera recursos de IA (SPEC §8.11). */
 async function assertAIPlan(organizationId: string): Promise<string | null> {
@@ -148,8 +184,10 @@ export async function generateCourseFromDocumentAction(
         audience,
       });
     }
-  } catch {
-    return { error: "Não foi possível organizar o documento. Tente novamente." };
+  } catch (e) {
+    // Loga o erro real (visível nos logs do servidor) e mostra um motivo útil.
+    console.error("[generateCourseFromDocument] falha ao organizar documento:", e);
+    return { error: documentErrorMessage(e) };
   }
 
   // Para PDF: guarda o arquivo no storage para mostrar a lâmina original em cada
