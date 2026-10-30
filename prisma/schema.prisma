@@ -342,6 +342,9 @@ model Certificate {
   certificateNumber String   @unique
   certificateUrl    String?
   verificationCode  String   @unique
+  // Presença no treinamento presencial. attendedAt costuma ser a data de emissão.
+  attendedInPerson  Boolean  @default(false)
+  attendedAt        DateTime?
   issuedAt          DateTime @default(now())
   createdAt         DateTime @default(now())
 
