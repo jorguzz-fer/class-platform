@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { getLockedModuleIds } from "./quiz.service";
 import { onCourseCompleted } from "./events.service";
+import { autoIssueCertificate } from "./certificate.service";
 
 /**
  * Serviço de Progresso e área do aluno (SPEC §10.4, §14.9).
@@ -308,6 +309,12 @@ export async function recomputeCourseCompletion(
     if (student && course) {
       await onCourseCompleted(before.organizationId, student.name, course.title);
     }
+  }
+
+  // Concluído: emite o certificado automaticamente (idempotente — se já
+  // existir, não faz nada; também resolve quem concluiu antes desta regra).
+  if (isComplete && before) {
+    await autoIssueCertificate(studentId, courseId);
   }
 
   return isComplete;

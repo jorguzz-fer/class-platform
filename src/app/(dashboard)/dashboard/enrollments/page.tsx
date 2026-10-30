@@ -2,14 +2,20 @@ import Link from "next/link";
 import { GraduationCap, Download } from "lucide-react";
 
 import { requireOrg } from "@/lib/tenant";
+import { can } from "@/lib/permissions";
 import {
   listEnrollments,
   listPendingEnrollments,
 } from "@/services/enrollment.service";
+import { listPendingCertificateEnrollments } from "@/services/certificate.service";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EnrollmentStatusBadge } from "@/components/dashboard/enrollment-status-badge";
 import { EditEnrollmentButton } from "@/components/dashboard/edit-enrollment-button";
+import {
+  IssueCertificateButton,
+  IssuePendingCertificatesButton,
+} from "@/components/dashboard/issue-certificate-buttons";
 import { PendingEnrollmentActions } from "@/components/dashboard/pending-enrollment-actions";
 import { ListFilters } from "@/components/dashboard/list-filters";
 import { cn } from "@/lib/utils";
@@ -19,13 +25,18 @@ export default async function EnrollmentsPage({
 }: {
   searchParams: Promise<{ q?: string; status?: string }>;
 }) {
-  const { organizationId } = await requireOrg();
+  const ctx = await requireOrg();
+  const { organizationId } = ctx;
   const { q = "", status = "" } = await searchParams;
   const hasFilters = q.trim() !== "" || status !== "";
-  const [enrollments, pending] = await Promise.all([
+  const canManage = can(ctx.role, "enrollment:manage");
+  const [enrollments, pending, pendingCertificates] = await Promise.all([
     listEnrollments(organizationId, { q, status }),
     listPendingEnrollments(organizationId),
+    canManage ? listPendingCertificateEnrollments(organizationId) : Promise.resolve([]),
   ]);
+  // Matrículas concluídas ainda sem certificado (botão por linha + em lote).
+  const pendingCertificateIds = new Set(pendingCertificates.map((e) => e.id));
 
   const exportParams = new URLSearchParams();
   if (q.trim()) exportParams.set("q", q.trim());
@@ -43,13 +54,18 @@ export default async function EnrollmentsPage({
             Todas as matrículas da sua escola.
           </p>
         </div>
-        <a
-          href={exportHref}
-          className={cn(buttonVariants({ variant: "outline" }), "w-fit gap-2")}
-        >
-          <Download className="h-4 w-4" />
-          Exportar CSV
-        </a>
+        <div className="flex flex-wrap gap-2">
+          {canManage && pendingCertificates.length > 0 && (
+            <IssuePendingCertificatesButton count={pendingCertificates.length} />
+          )}
+          <a
+            href={exportHref}
+            className={cn(buttonVariants({ variant: "outline" }), "w-fit gap-2")}
+          >
+            <Download className="h-4 w-4" />
+            Exportar CSV
+          </a>
+        </div>
       </div>
 
       {pending.length > 0 && (
@@ -168,13 +184,18 @@ export default async function EnrollmentsPage({
                       {e.enrolledAt.toLocaleDateString("pt-BR")}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <EditEnrollmentButton
-                        enrollmentId={e.id}
-                        studentName={e.student.name}
-                        courseTitle={e.course.title}
-                        currentStatus={e.status}
-                        enrolledAt={e.enrolledAt.toISOString().slice(0, 10)}
-                      />
+                      <div className="flex justify-end gap-1">
+                        {canManage && pendingCertificateIds.has(e.id) && (
+                          <IssueCertificateButton enrollmentId={e.id} />
+                        )}
+                        <EditEnrollmentButton
+                          enrollmentId={e.id}
+                          studentName={e.student.name}
+                          courseTitle={e.course.title}
+                          currentStatus={e.status}
+                          enrolledAt={e.enrolledAt.toISOString().slice(0, 10)}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}

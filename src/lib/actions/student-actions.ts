@@ -8,6 +8,10 @@ import { assertPermission } from "@/lib/permissions";
 import { audit } from "@/lib/audit";
 import { onEnrollmentCreated, onStudentCreated } from "@/services/events.service";
 import {
+  issueCertificateForEnrollment,
+  issuePendingCertificates,
+} from "@/services/certificate.service";
+import {
   createStudentSchema,
   updateStudentSchema,
   createEnrollmentSchema,
@@ -241,8 +245,47 @@ export async function updateEnrollmentAction(
   });
   if (!ok) return { error: "Matrícula não encontrada." };
 
+  // Marcou como Concluída: emite o certificado automaticamente (idempotente).
+  if (parsed.data.status === "COMPLETED") {
+    try {
+      await issueCertificateForEnrollment(ctx.organizationId, enrollmentId);
+    } catch {
+      // best-effort: dá para emitir depois pelo botão em Matrículas.
+    }
+    revalidatePath("/dashboard/certificates");
+  }
+
   revalidatePath("/dashboard/enrollments");
   return null;
+}
+
+/** Emite o certificado de uma matrícula concluída (pelo admin). */
+export async function issueEnrollmentCertificateAction(
+  enrollmentId: string,
+): Promise<ActionResult> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "enrollment:manage");
+
+  const result = await issueCertificateForEnrollment(ctx.organizationId, enrollmentId);
+  if (!result.ok) return { error: result.error };
+
+  revalidatePath("/dashboard/enrollments");
+  revalidatePath("/dashboard/certificates");
+  return null;
+}
+
+/** Emite de uma vez os certificados de todas as matrículas concluídas pendentes. */
+export async function issuePendingCertificatesAction(): Promise<
+  { error: string } | { issued: number; failed: number }
+> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "enrollment:manage");
+
+  const result = await issuePendingCertificates(ctx.organizationId);
+
+  revalidatePath("/dashboard/enrollments");
+  revalidatePath("/dashboard/certificates");
+  return result;
 }
 
 export async function deleteEnrollmentAction(enrollmentId: string): Promise<ActionResult> {
