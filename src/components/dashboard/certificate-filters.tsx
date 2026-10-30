@@ -10,9 +10,9 @@ const selectClass =
   "h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
 /**
- * Filtros da listagem de certificados (busca, curso, intervalo de emissão e
- * presença presencial). Reflete o estado na URL para a página filtrar no
- * servidor (?q=&courseId=&from=&to=&attended=).
+ * Filtros da listagem de certificados (busca, curso, operação, intervalo de
+ * emissão e presença presencial). Reflete o estado na URL para a página
+ * filtrar no servidor (?q=&courseId=&operation=&from=&to=&attended=).
  */
 export function CertificateFilters({
   q,
@@ -20,23 +20,28 @@ export function CertificateFilters({
   from,
   to,
   attended,
+  operation,
   courses,
+  operations,
 }: {
   q: string;
   courseId: string;
   from: string;
   to: string;
   attended: string;
+  operation: string;
   courses: { id: string; title: string }[];
+  /** Operações da escola; vazio = filtro oculto. */
+  operations: string[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const [search, setSearch] = useState(q);
-  const [state, setState] = useState({ courseId, from, to, attended });
+  const [state, setState] = useState({ courseId, from, to, attended, operation });
 
   function pushUrl(
     nextSearch: string,
-    next: { courseId: string; from: string; to: string; attended: string },
+    next: { courseId: string; from: string; to: string; attended: string; operation: string },
   ) {
     const params = new URLSearchParams();
     if (nextSearch.trim()) params.set("q", nextSearch.trim());
@@ -44,6 +49,7 @@ export function CertificateFilters({
     if (next.from) params.set("from", next.from);
     if (next.to) params.set("to", next.to);
     if (next.attended) params.set("attended", next.attended);
+    if (next.operation) params.set("operation", next.operation);
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
@@ -87,6 +93,22 @@ export function CertificateFilters({
           </option>
         ))}
       </select>
+
+      {operations.length > 0 && (
+        <select
+          value={state.operation}
+          onChange={(e) => update({ operation: e.target.value })}
+          className={selectClass}
+          aria-label="Filtrar por operação"
+        >
+          <option value="">Todas as operações</option>
+          {operations.map((op) => (
+            <option key={op} value={op}>
+              {op}
+            </option>
+          ))}
+        </select>
+      )}
 
       <select
         value={state.attended}

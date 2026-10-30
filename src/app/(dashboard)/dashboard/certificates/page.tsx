@@ -6,10 +6,12 @@ import {
   listOrgCertificates,
   listCertificateCourses,
 } from "@/services/certificate.service";
+import { getStudentOperations } from "@/services/student.service";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { CertificateFilters } from "@/components/dashboard/certificate-filters";
 import { CertificateAttendanceEditor } from "@/components/dashboard/certificate-attendance-editor";
+import { CertificateIssuedAtEditor } from "@/components/dashboard/certificate-issued-at-editor";
 import { cn } from "@/lib/utils";
 
 export default async function DashboardCertificatesPage({
@@ -21,18 +23,28 @@ export default async function DashboardCertificatesPage({
     from?: string;
     to?: string;
     attended?: string;
+    operation?: string;
   }>;
 }) {
   const ctx = await requireOrg();
-  const { q = "", courseId = "", from = "", to = "", attended = "" } =
-    await searchParams;
-  const filters = { q, courseId, from, to, attended };
+  const {
+    q = "",
+    courseId = "",
+    from = "",
+    to = "",
+    attended = "",
+    operation = "",
+  } = await searchParams;
+  const filters = { q, courseId, from, to, attended, operation };
   const hasFilters = Object.values(filters).some((v) => v !== "");
 
-  const [certificates, courses] = await Promise.all([
+  const [certificates, courses, operations] = await Promise.all([
     listOrgCertificates(ctx.organizationId, filters),
     listCertificateCourses(ctx.organizationId),
+    getStudentOperations(ctx.organizationId),
   ]);
+  // Coluna/filtro de Operação só para escolas que usam operações (ex.: DCAS).
+  const showOperation = operations.length > 0;
 
   const canManage = can(ctx.role, "enrollment:manage");
   const canExport = can(ctx.role, "org:view_reports");
@@ -43,6 +55,7 @@ export default async function DashboardCertificatesPage({
   if (from) exportParams.set("from", from);
   if (to) exportParams.set("to", to);
   if (attended) exportParams.set("attended", attended);
+  if (operation) exportParams.set("operation", operation);
   const exportHref = `/api/reports/certificates${
     exportParams.toString() ? `?${exportParams.toString()}` : ""
   }`;
@@ -73,7 +86,9 @@ export default async function DashboardCertificatesPage({
         from={from}
         to={to}
         attended={attended}
+        operation={operation}
         courses={courses}
+        operations={operations}
       />
 
       {certificates.length === 0 ? (
@@ -100,6 +115,9 @@ export default async function DashboardCertificatesPage({
                 <tr>
                   <th className="px-4 py-3 font-medium">Aluno</th>
                   <th className="px-4 py-3 font-medium">Curso</th>
+                  {showOperation && (
+                    <th className="px-4 py-3 font-medium">Operação</th>
+                  )}
                   <th className="px-4 py-3 font-medium">Número</th>
                   <th className="px-4 py-3 font-medium">Emitido em</th>
                   <th className="px-4 py-3 font-medium">Presencial</th>
@@ -110,11 +128,27 @@ export default async function DashboardCertificatesPage({
                   <tr key={cert.id} className="border-b last:border-0">
                     <td className="px-4 py-3">{cert.student.name}</td>
                     <td className="px-4 py-3">{cert.course.title}</td>
+                    {showOperation && (
+                      <td className="px-4 py-3">
+                        {cert.student.memberships[0]?.operation ?? (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-4 py-3 font-mono text-xs">
                       {cert.certificateNumber}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {cert.issuedAt.toLocaleDateString("pt-BR")}
+                      {canManage ? (
+                        <CertificateIssuedAtEditor
+                          certificateId={cert.id}
+                          studentName={cert.student.name}
+                          courseTitle={cert.course.title}
+                          issuedAt={cert.issuedAt.toISOString().slice(0, 10)}
+                        />
+                      ) : (
+                        cert.issuedAt.toLocaleDateString("pt-BR")
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {canManage ? (
