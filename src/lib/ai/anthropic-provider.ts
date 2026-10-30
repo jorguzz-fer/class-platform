@@ -205,24 +205,25 @@ export class AnthropicAIProvider implements AIProvider {
     // longos sem estourar o orçamento de tokens.
     const content = input.content.slice(0, 80000);
 
-    const message = await this.client.messages.create({
-      model: COURSE_MODEL,
-      // Saída enxuta (conteúdo conciso) + sem thinking: muito mais rápido,
-      // evitando esperas de minutos e timeout do proxy.
-      max_tokens: 8000,
-      system: [
-        { type: "text", text: SYSTEM_INSTRUCTOR, cache_control: { type: "ephemeral" } },
-      ],
-      output_config: { format: { type: "json_schema", schema: COURSE_DOC_SCHEMA } },
-      messages: [
-        {
-          role: "user",
-          content:
-            courseFromMaterialInstruction(input.level, input.audience) +
-            `\n\nDocumento:\n${content}`,
-        },
-      ],
-    });
+    const message = await this.client.messages
+      .stream({
+        model: COURSE_MODEL,
+        // Streaming + teto confortável: evita timeout e JSON truncado.
+        max_tokens: 16000,
+        system: [
+          { type: "text", text: SYSTEM_INSTRUCTOR, cache_control: { type: "ephemeral" } },
+        ],
+        output_config: { format: { type: "json_schema", schema: COURSE_DOC_SCHEMA } },
+        messages: [
+          {
+            role: "user",
+            content:
+              courseFromMaterialInstruction(input.level, input.audience) +
+              `\n\nDocumento:\n${content}`,
+          },
+        ],
+      })
+      .finalMessage();
 
     return this.extractJson<DocumentCourseOutline>(message);
   }
@@ -231,39 +232,42 @@ export class AnthropicAIProvider implements AIProvider {
     input: PdfCourseInput,
   ): Promise<DocumentCourseOutline> {
     // O Claude lê o PDF nativamente (visão): cobre PDFs de texto E de imagens/
-    // slides — neste caso transcrevendo o conteúdo das lâminas.
-    const message = await this.client.messages.create({
-      model: COURSE_MODEL,
-      // Saída enxuta (conteúdo conciso) + sem thinking: muito mais rápido,
-      // evitando esperas de minutos e timeout do proxy.
-      max_tokens: 8000,
-      system: [
-        { type: "text", text: SYSTEM_INSTRUCTOR, cache_control: { type: "ephemeral" } },
-      ],
-      output_config: { format: { type: "json_schema", schema: COURSE_PDF_SCHEMA } },
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "document",
-              source: {
-                type: "base64",
-                media_type: "application/pdf",
-                data: input.pdfBase64,
+    // slides — neste caso transcrevendo o conteúdo das lâminas. Usamos STREAMING
+    // porque a leitura de PDFs de imagem pode demorar e estourar o timeout da
+    // chamada não-streaming (proxy/plataforma).
+    const message = await this.client.messages
+      .stream({
+        model: COURSE_MODEL,
+        // Teto confortável para não truncar o JSON de saída.
+        max_tokens: 16000,
+        system: [
+          { type: "text", text: SYSTEM_INSTRUCTOR, cache_control: { type: "ephemeral" } },
+        ],
+        output_config: { format: { type: "json_schema", schema: COURSE_PDF_SCHEMA } },
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "document",
+                source: {
+                  type: "base64",
+                  media_type: "application/pdf",
+                  data: input.pdfBase64,
+                },
               },
-            },
-            {
-              type: "text",
-              text:
-                courseFromMaterialInstruction(input.level, input.audience) +
-                " Para CADA aula, informe em slidePage o número da lâmina/página " +
-                "do PDF (1-based) de onde o conteúdo foi tirado.",
-            },
-          ],
-        },
-      ],
-    });
+              {
+                type: "text",
+                text:
+                  courseFromMaterialInstruction(input.level, input.audience) +
+                  " Para CADA aula, informe em slidePage o número da lâmina/página " +
+                  "do PDF (1-based) de onde o conteúdo foi tirado.",
+              },
+            ],
+          },
+        ],
+      })
+      .finalMessage();
 
     return this.extractJson<DocumentCourseOutline>(message);
   }
@@ -440,10 +444,34 @@ export class AnthropicAIProvider implements AIProvider {
 
   /** Extrai o JSON estruturado da resposta (output_config.format). */
   private extractJson<T>(message: Anthropic.Message): T {
-    const text = message.content
+    // Falhas comuns que, sem tratamento, viram "Unexpected token" no JSON.parse.
+    if (message.stop_reason === "refusal") {
+      throw new Error("A IA recusou processar o conteúdo deste documento.");
+    }
+    if (message.stop_reason === "max_tokens") {
+      throw new Error(
+        "O documento é muito extenso para organizar de uma vez. Tente um PDF menor ou com menos páginas.",
+      );
+    }
+
+    let text = message.content
       .filter((b): b is Anthropic.TextBlock => b.type === "text")
       .map((b) => b.text)
-      .join("");
-    return JSON.parse(text) as T;
+      .join("")
+      .trim();
+
+    if (!text) {
+      throw new Error("A IA não retornou conteúdo para este documento.");
+    }
+
+    // Remove cercas de código, se vierem (```json ... ```).
+    const fenced = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+    if (fenced) text = fenced[1].trim();
+
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      throw new Error("A IA retornou uma resposta em formato inesperado.");
+    }
   }
 }
