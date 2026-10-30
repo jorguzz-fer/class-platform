@@ -30,17 +30,28 @@ export async function issueCertificateAction(courseId: string): Promise<{ error:
 }
 
 /**
- * Marca/desmarca a presença presencial de um certificado (visão admin da
- * escola). Requer gestão de matrículas.
+ * Marca, altera ou remove a presença presencial de um certificado (visão admin
+ * da escola). `date` vem como YYYY-MM-DD do seletor; `null` remove a presença.
+ * Requer gestão de matrículas.
  */
 export async function setCertificateAttendanceAction(
   certificateId: string,
-  attended: boolean,
+  date: string | null,
 ): Promise<{ error: string } | null> {
   const ctx = await requireOrg();
   assertPermission(ctx.role, "enrollment:manage");
 
-  const ok = await setCertificateAttendance(ctx.organizationId, certificateId, attended);
+  let attendedAt: Date | null = null;
+  if (date !== null) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: "Data inválida." };
+    // Meio-dia UTC: a data não "volta um dia" ao exibir em outro fuso.
+    attendedAt = new Date(`${date}T12:00:00.000Z`);
+    if (Number.isNaN(attendedAt.getTime()) || attendedAt.toISOString().slice(0, 10) !== date) {
+      return { error: "Data inválida." };
+    }
+  }
+
+  const ok = await setCertificateAttendance(ctx.organizationId, certificateId, attendedAt);
   if (!ok) return { error: "Certificado não encontrado." };
 
   revalidatePath("/dashboard/certificates");

@@ -193,27 +193,18 @@ export function listCertificateCourses(organizationId: string) {
 }
 
 /**
- * Marca/desmarca presença no treinamento presencial. Ao marcar, carimba
- * attendedAt com a MESMA data de emissão do certificado (regra do negócio).
- * Escopado por org.
+ * Marca, altera ou remove a presença no treinamento presencial. A data é
+ * escolhida por quem marca (a tela sugere a data de emissão). `null` remove a
+ * presença. Escopado por org.
  */
 export async function setCertificateAttendance(
   organizationId: string,
   certificateId: string,
-  attended: boolean,
+  attendedAt: Date | null,
 ): Promise<boolean> {
-  const cert = await db.certificate.findFirst({
+  const result = await db.certificate.updateMany({
     where: { id: certificateId, organizationId },
-    select: { issuedAt: true },
+    data: { attendedInPerson: attendedAt !== null, attendedAt },
   });
-  if (!cert) return false;
-
-  await db.certificate.update({
-    where: { id: certificateId },
-    data: {
-      attendedInPerson: attended,
-      attendedAt: attended ? cert.issuedAt : null,
-    },
-  });
-  return true;
+  return result.count > 0;
 }
