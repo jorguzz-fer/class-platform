@@ -17,7 +17,13 @@ import {
   createEnrollmentSchema,
   updateEnrollmentSchema,
   studentOperationsSchema,
+  studentPasswordSchema,
 } from "@/lib/validators";
+import { rateLimit } from "@/lib/rateLimit";
+import {
+  staffSendStudentResetLink,
+  staffSetStudentPassword,
+} from "@/services/password-reset.service";
 import {
   createStudent,
   updateStudent,
@@ -153,6 +159,63 @@ export async function saveStudentOperationsAction(
 
   revalidatePath("/dashboard/settings/operations");
   revalidatePath("/dashboard/students");
+  return null;
+}
+
+/** Envia ao aluno o link de redefinição de senha por e-mail. */
+export async function sendStudentPasswordResetAction(
+  studentId: string,
+): Promise<ActionResult> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "student:manage");
+
+  // Evita lotar a caixa do aluno com cliques repetidos.
+  const { allowed } = await rateLimit({
+    key: `staff-reset:${ctx.organizationId}:${studentId}`,
+    windowSec: 3600,
+    max: 3,
+  });
+  if (!allowed) {
+    return { error: "Já enviamos alguns links na última hora. Aguarde antes de enviar outro." };
+  }
+
+  const result = await staffSendStudentResetLink(ctx.organizationId, studentId);
+  if (!result.ok) return { error: result.error };
+
+  await audit({
+    organizationId: ctx.organizationId,
+    userId: ctx.userId,
+    action: "student.password_reset_link",
+    entityType: "User",
+    entityId: studentId,
+  });
+  return null;
+}
+
+/** Define uma senha provisória para o aluno (só contas exclusivas da escola). */
+export async function setStudentPasswordAction(
+  studentId: string,
+  password: string,
+): Promise<ActionResult> {
+  const ctx = await requireOrg();
+  assertPermission(ctx.role, "student:manage");
+
+  const parsed = studentPasswordSchema.safeParse(password);
+  if (!parsed.success) {
+    return { fieldErrors: { password: parsed.error.issues.map((i) => i.message) } };
+  }
+
+  const result = await staffSetStudentPassword(ctx.organizationId, studentId, parsed.data);
+  if (!result.ok) return { error: result.error };
+
+  // Nunca registrar a senha: só o fato de que foi redefinida.
+  await audit({
+    organizationId: ctx.organizationId,
+    userId: ctx.userId,
+    action: "student.password_set",
+    entityType: "User",
+    entityId: studentId,
+  });
   return null;
 }
 
