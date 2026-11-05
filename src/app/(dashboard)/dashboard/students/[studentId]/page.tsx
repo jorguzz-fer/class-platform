@@ -12,6 +12,8 @@ import { EnrollmentRowActions } from "@/components/dashboard/enrollment-row-acti
 import { EnrollmentStatusBadge } from "@/components/dashboard/enrollment-status-badge";
 import { AnonymizeStudentButton } from "@/components/dashboard/anonymize-student-button";
 import { StudentOperationSelect } from "@/components/dashboard/student-operation-select";
+import { StudentPasswordReset } from "@/components/dashboard/student-password-reset";
+import { canStaffSetStudentPassword } from "@/services/password-reset.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function StudentDetailPage({
@@ -32,6 +34,10 @@ export default async function StudentDetailPage({
   ]);
 
   const canManageEnroll = can(ctx.role, "enrollment:manage");
+  const canManageStudent = can(ctx.role, "student:manage");
+  const canSetPassword = canManageStudent
+    ? await canStaffSetStudentPassword(ctx.organizationId, studentId)
+    : false;
   const enrolledCourseIds = new Set(enrollments.map((e) => e.course.id));
   const available = courses.filter((c) => !enrolledCourseIds.has(c.id));
 
@@ -45,8 +51,19 @@ export default async function StudentDetailPage({
           <ArrowLeft className="h-4 w-4" />
           Voltar
         </Link>
-        <h1 className="text-2xl font-bold tracking-tight">{student.name}</h1>
-        <p className="text-muted-foreground">{student.email}</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">{student.name}</h1>
+            <p className="text-muted-foreground">{student.email}</p>
+          </div>
+          {canManageStudent && (
+            <StudentPasswordReset
+              studentId={student.id}
+              email={student.email}
+              canSetPassword={canSetPassword}
+            />
+          )}
+        </div>
       </div>
 
       {(operations.length > 0 || student.operation) && (

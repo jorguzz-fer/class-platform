@@ -64,6 +64,11 @@ function resolveProvider(): EmailProvider {
 
 export const emailProvider: EmailProvider = resolveProvider();
 
+/** True quando há provedor real de e-mail (sem ele, os e-mails só vão para o log). */
+export function isEmailConfigured(): boolean {
+  return !!process.env.RESEND_API_KEY;
+}
+
 export function sendEmail(message: EmailMessage): Promise<void> {
   return emailProvider.send(message);
 }

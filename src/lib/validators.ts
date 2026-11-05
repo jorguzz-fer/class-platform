@@ -20,6 +20,9 @@ const passwordSchema = z
   .min(8, "A senha deve ter pelo menos 8 caracteres")
   .max(72, "A senha deve ter no máximo 72 caracteres"); // limite do bcrypt
 
+// Senha definida pela escola para um aluno (senha provisória).
+export const studentPasswordSchema = passwordSchema;
+
 // Nome completo: exige ao menos nome + sobrenome.
 const fullNameSchema = z
   .string()
